@@ -1,0 +1,10 @@
+torch==1.12.1
+transformers==4.39.3
+evaluate
+accelerate
+datasets
+seaborn
+matplotlib
+pandas
+numpy
+jiwer
