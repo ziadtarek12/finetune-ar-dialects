@@ -48,9 +48,7 @@ if __name__ == "__main__":
     processor = WhisperProcessor.from_pretrained(
         "openai/whisper-small", language="Arabic", task="transcribe"
     )
-    model = WhisperForConditionalGeneration.from_pretrained(
-        "otozz/whisper-small-ar_tsize_1.0"
-    )
+    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
     model.generation_config.language = "ar"
@@ -59,7 +57,7 @@ if __name__ == "__main__":
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir=f"./whisper-small-finetune_{args.dialect}",
+        output_dir=f"./whisper-small-dialect_{args.dialect}",
         per_device_train_batch_size=8,
         gradient_accumulation_steps=1,
         learning_rate=1e-5,
@@ -78,10 +76,8 @@ if __name__ == "__main__":
         metric_for_best_model="wer",
         greater_is_better=False,
     )
-    for seed in [42, 84, 168]:
-        if args.dialect == "maghrebi" and seed == 42:
-            continue
 
+    for seed in [42, 84, 168]:
         print(f"Training with seed {seed}")
         train_test = dialect_dataset.train_test_split(test_size=0.2, seed=seed)
         trainer = Seq2SeqTrainer(
@@ -94,5 +90,5 @@ if __name__ == "__main__":
             tokenizer=processor.feature_extractor,
             callbacks=[early_stopping_callback, TimingCallback()],
         )
-        training_args.output_dir = f"./whisper-small-finetune_{args.dialect}_seed{seed}"
+        training_args.output_dir = f"./whisper-small-dialect_{args.dialect}_seed{seed}"
         trainer.train()

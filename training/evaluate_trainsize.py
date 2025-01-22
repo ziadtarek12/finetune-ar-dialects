@@ -1,4 +1,11 @@
-from transformers import WhisperFeatureExtractor, WhisperTokenizer, WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainingArguments, Seq2SeqTrainer
+from transformers import (
+    WhisperFeatureExtractor,
+    WhisperTokenizer,
+    WhisperProcessor,
+    WhisperForConditionalGeneration,
+    Seq2SeqTrainingArguments,
+    Seq2SeqTrainer,
+)
 from datasets import load_from_disk
 import evaluate
 
@@ -8,25 +15,23 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 import argparse
 import json
+from transformers import EarlyStoppingCallback
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--model_name', required=True)
+parser.add_argument("-t", "--train_size", required=True)
 args = parser.parse_args()
-model_name = str(args.model_name)
-model_name_internal = model_name.split("/")[-1]
-print(model_name_internal)
+train_size = float(args.train_size)
+model_name = f"results_thesis/whisper-small-ar_tsize_{train_size}/checkpoint-5000"
 
 feature_extractor = WhisperFeatureExtractor.from_pretrained(model_name)
 tokenizer = WhisperTokenizer.from_pretrained(
-    model_name, language="Arabic", task="transcribe"
+    "openai/whisper-small", language="Arabic", task="transcribe"
 )
 processor = WhisperProcessor.from_pretrained(
-    model_name, language="Arabic", task="transcribe"
+    "openai/whisper-small", language="Arabic", task="transcribe"
 )
-if model_name_internal == "whisper-small":
-    common_voice = load_from_disk('common_voice_arabic_preprocessed/')
-else:
-    common_voice = load_from_disk('common_voice_arabic_preprocessed_large/')
+
+common_voice = load_from_disk("common_voice_arabic_preprocessed/test")
 
 
 @dataclass
@@ -49,6 +54,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
         )
+
         if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
             labels = labels[:, 1:]
 
@@ -76,8 +82,11 @@ data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 wer_metric = evaluate.load("wer")
 cer_metric = evaluate.load("cer")
 
+early_stopping_callback = EarlyStoppingCallback(
+    early_stopping_patience=3, early_stopping_threshold=0.001
+)
 training_args = Seq2SeqTrainingArguments(
-    output_dir=f"./{model_name_internal}",
+    output_dir=f"./whisper-small-ar_tsize_{str(train_size)}",
     per_device_train_batch_size=8,
     gradient_accumulation_steps=1,
     learning_rate=1e-5,
@@ -87,9 +96,9 @@ training_args = Seq2SeqTrainingArguments(
     evaluation_strategy="steps",
     per_device_eval_batch_size=8,
     predict_with_generate=True,
-    generation_max_length=225,
-    save_steps=1000,
-    eval_steps=1000,
+    generation_max_length=448,
+    save_steps=250,
+    eval_steps=250,
     logging_steps=25,
     report_to=["tensorboard"],
     load_best_model_at_end=True,
@@ -108,7 +117,8 @@ trainer = Seq2SeqTrainer(
     data_collator=data_collator,
     compute_metrics=compute_metrics,
     tokenizer=processor.feature_extractor,
+    callbacks=[early_stopping_callback],
 )
 results = trainer.evaluate(language="ar")
-with open(f"results_common_voice_{model_name_internal}.json", 'w') as f:
+with open(f"results_common_voice{train_size}.json", "w") as f:
     json.dump(results, f)

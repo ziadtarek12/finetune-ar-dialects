@@ -1,10 +1,11 @@
 torch==1.12.1
 transformers==4.39.3
 evaluate
-accelerate
+accelerate==0.28.0
 datasets
 seaborn
 matplotlib
 pandas
 numpy
 jiwer
+tensorboard

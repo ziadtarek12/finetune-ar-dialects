@@ -1,16 +1,20 @@
 import evaluate
 
 import torch
-from transformers import WhisperTokenizer
+import time
+from transformers import WhisperTokenizer, TrainerCallback
+
 torch.multiprocessing.set_sharing_strategy("file_system")
-from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from dataclasses import dataclass  # noqa: E402
+from typing import Any, Dict, List, Union  # noqa: E402
 
 tokenizer = WhisperTokenizer.from_pretrained(
     "openai/whisper-small", language="Arabic", task="transcribe"
 )
 wer_metric = evaluate.load("wer")
 cer_metric = evaluate.load("cer")
+
+
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: Any
@@ -54,3 +58,22 @@ def compute_metrics(pred):
     return {"wer": wer, "cer": cer}
 
 
+class TimingCallback(TrainerCallback):
+    def __init__(self):
+        self.start_time = time.time()
+        self.epoch_start_time = None
+
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        self.epoch_start_time = time.time()
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        epoch_time = time.time() - self.epoch_start_time
+        print(f"Epoch {state.epoch} took {epoch_time:.2f} seconds")
+
+    def on_train_end(self, args, state, control, **kwargs):
+        total_time = time.time() - self.start_time
+        print(f"Total training time: {total_time:.2f} seconds")
+        with open(f"training_time_{self.start_time}.txt", "w") as f:
+            f.write(
+                f"Total training time: {total_time:.2f} seconds or {total_time / 3600:.2f} hours"
+            )
