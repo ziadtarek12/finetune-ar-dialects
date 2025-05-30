@@ -1,5 +1,7 @@
-# Overcoming Data Scarcity in Multi-Dialectal Arabic ASR via Whisper Fine-Tuning
 [![DOI](https://zenodo.org/badge/803227691.svg)](https://doi.org/10.5281/zenodo.15553149)
+
+# Overcoming Data Scarcity in Multi-Dialectal Arabic ASR via Whisper Fine-Tuning
+
 This repository contains the code for training the models evaluated in the paper as well as the results and plotting.
 
 ## Setting up environment
