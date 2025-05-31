@@ -75,4 +75,4 @@ options:
 
 ### Results
 
-The results can be found in `results/` as well as the Jupyter notebooks required for recreation of the plots in the thesis. `results/training_plots.ipynb` plots the training processes, while `results/results.ipynb` plots the final results. The plots can also be found in `results/plots/`
+The results can be found in `src/results/` as well as the Jupyter notebook `src/results.ipynb` required for recreation of the plots in the paper. The final plots can also be found in `src/results/plots/`.

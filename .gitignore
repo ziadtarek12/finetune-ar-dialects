@@ -162,11 +162,10 @@ cython_debug/
 # Mac
 .DS_Store
 .vscode/
-results/
 .old/
 datasets/
 raw_datasets/
-plots/
 plot_feature_selection.ipynb
 .other/
 scripts/
+training logs/

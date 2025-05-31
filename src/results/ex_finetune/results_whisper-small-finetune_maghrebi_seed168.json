@@ -1,0 +1,50 @@
+{
+    "egyptian": {
+        "eval_loss": 1.5638998746871948,
+        "eval_wer": 91.01010429188733,
+        "eval_cer": 61.81830802822057,
+        "eval_runtime": 1076.4263,
+        "eval_samples_per_second": 4.118,
+        "eval_steps_per_second": 0.516
+    },
+    "gulf": {
+        "eval_loss": 1.6336456537246704,
+        "eval_wer": 102.07559335564494,
+        "eval_cer": 74.32534783723662,
+        "eval_runtime": 1301.7128,
+        "eval_samples_per_second": 4.155,
+        "eval_steps_per_second": 0.519
+    },
+    "iraqi": {
+        "eval_loss": 1.7860331535339355,
+        "eval_wer": 106.06611382483244,
+        "eval_cer": 69.98648322977462,
+        "eval_runtime": 697.602,
+        "eval_samples_per_second": 4.504,
+        "eval_steps_per_second": 0.563
+    },
+    "levantine": {
+        "eval_loss": 1.4612807035446167,
+        "eval_wer": 96.82253926819388,
+        "eval_cer": 69.34972412796382,
+        "eval_runtime": 837.1315,
+        "eval_samples_per_second": 4.255,
+        "eval_steps_per_second": 0.533
+    },
+    "maghrebi": {
+        "eval_loss": 1.2406357526779175,
+        "eval_wer": 97.3535457348407,
+        "eval_cer": 76.61296267477005,
+        "eval_runtime": 1006.3312,
+        "eval_samples_per_second": 4.146,
+        "eval_steps_per_second": 0.519
+    },
+    "MSA": {
+        "eval_loss": 0.5590064525604248,
+        "eval_wer": 58.620055874136156,
+        "eval_cer": 23.682786327340338,
+        "eval_runtime": 2076.2544,
+        "eval_samples_per_second": 5.047,
+        "eval_steps_per_second": 0.631
+    }
+}
