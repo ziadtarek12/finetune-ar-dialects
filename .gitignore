@@ -168,3 +168,5 @@ datasets/
 raw_datasets/
 plots/
 plot_feature_selection.ipynb
+.other/
+scripts/

@@ -20,7 +20,7 @@ pip install -r requirements.txt
 The `training/experiment_*.py` files expect datasets to be available. Please check out the files before trying to run them. Example uses are displayed below.
 
 ```shell
-usage: experiment_dialect.py [-h] -d DIALECT
+usage: experiment_scratch.py [-h] -d DIALECT
 
 options:
   -h, --help            show this help message and exit
@@ -38,7 +38,7 @@ options:
 ```
 
 ```shell
-usage: experiment_msa.py [-h] -t TRAIN_SIZE
+usage: experiment_trainsize.py [-h] -t TRAIN_SIZE
 
 options:
   -h, --help            show this help message and exit
@@ -48,14 +48,29 @@ options:
 
 ### Evaluation
 
-Evaluation can be done with both the `training/evaluate_all.py` and `training/evaluate_whisper*.py` files, with the latter being a manual input of the model checkpoint and only evaluating on MSA. `training/evaluate_all.py` evaluates on all test sets:
+Evaluation can be done with the `evaluation/evaluate_dialects.py` file for all dialects and the MSA test set, the `evaluation/evaluate_notraining.py` file for the Whisper checkpoints, and the `evaluation/evaluate_trainsize.py` for the training size experiments. Example uses are displayed below.
 
 ```shell
-usage: evaluate_all.py [-h] -c CHECKPOINT
+usage: evaluate_dialects.py [-h] -c CHECKPOINT
 
 options:
   -h, --help            show this help message and exit
   -c CHECKPOINT, --checkpoint CHECKPOINT
+```
+```shell
+usage: evaluate_notraining.py [-h] -m MODEL_NAME
+
+options:
+  -h, --help            show this help message and exit
+  -m MODEL_NAME, --model_name MODEL_NAME
+```
+
+```shell
+usage: evaluate_trainsize.py [-h] -t TRAIN_SIZE
+
+options:
+  -h, --help            show this help message and exit
+  -t TRAIN_SIZE, --train_size TRAIN_SIZE
 ```
 
 ### Results

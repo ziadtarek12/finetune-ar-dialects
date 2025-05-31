@@ -1,11 +1,13 @@
-torch==1.12.1
-transformers==4.39.3
+torch==2.1.2
+transformers
 evaluate
-accelerate==0.28.0
+accelerate
 datasets
 seaborn
 matplotlib
 pandas
-numpy
+numpy==1.25.1
 jiwer
 tensorboard
+librosa
+soundfile
