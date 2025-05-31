@@ -75,4 +75,4 @@ options:
 
 ### Results
 
-The results can be found in `src/results/` as well as the Jupyter notebook `src/results.ipynb` required for recreation of the plots in the paper. The final plots can also be found in `src/results/plots/`.
+The results can be found in `results/` as well as the Jupyter notebook `results.ipynb` required for recreation of the plots in the paper. The final plots can also be found in `results/plots/`.
