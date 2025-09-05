@@ -2,7 +2,9 @@ import evaluate
 
 import torch
 import time
-from transformers import WhisperTokenizer, TrainerCallback
+from transformers import WhisperTokenizer, TrainerCallback, TrainingArguments, TrainerState, TrainerControl
+from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+import os
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 from dataclasses import dataclass  # noqa: E402
@@ -80,3 +82,24 @@ class TimingCallback(TrainerCallback):
             f.write(
                 f"Total training time: {total_time:.2f} seconds or {total_time / 3600:.2f} hours"
             )
+
+
+class SavePeftModelCallback(TrainerCallback):
+    """Callback to save only PEFT adapter weights and remove base model weights."""
+    
+    def on_save(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+
+        peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
+        kwargs["model"].save_pretrained(peft_model_path)
+
+        pytorch_model_path = os.path.join(checkpoint_folder, "pytorch_model.bin")
+        if os.path.exists(pytorch_model_path):
+            os.remove(pytorch_model_path)
+        return control
