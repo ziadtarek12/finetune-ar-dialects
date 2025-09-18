@@ -462,16 +462,21 @@ class EvaluationManager:
         # Evaluation loop
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             with torch.no_grad():
-                # Move input features to device
+                # Move input features to device and ensure proper dtype
                 device = next(model.parameters()).device
                 input_features = batch["input_features"].to(device)
                 
-                # Generate token ids
-                generated_tokens = model.generate(
-                    input_features=input_features,
-                    forced_decoder_ids=forced_decoder_ids,
-                    max_new_tokens=255,
-                ).cpu().numpy()
+                # Ensure input features have the right dtype for the model
+                if hasattr(model, 'dtype'):
+                    input_features = input_features.to(dtype=model.dtype)
+                
+                # Generate token ids with autocast for mixed precision
+                with torch.cuda.amp.autocast():
+                    generated_tokens = model.generate(
+                        input_features=input_features,
+                        forced_decoder_ids=forced_decoder_ids,
+                        max_new_tokens=255,
+                    ).cpu().numpy()
                 
                 # Prepare label ids
                 labels = batch["labels"].numpy()
@@ -710,6 +715,10 @@ class ArabicDialectPEFTTrainer:
                 language="ar",
                 task="transcribe"
             )
+            
+            # Prepare model for evaluation
+            model.eval()
+            model.config.use_cache = True
             
             # Create evaluation manager with loaded model
             self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
