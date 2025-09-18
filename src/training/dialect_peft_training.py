@@ -696,14 +696,26 @@ class ArabicDialectPEFTTrainer:
     
     def evaluate_model(self, model_path: str = None):
         """Evaluate the trained model using the evaluation manager."""
-        if self.evaluation_manager is None:
-            # Initialize if not already done
-            if model_path:
-                # Load model for evaluation
-                model, processor = self.evaluation_manager._load_trained_model(model_path)
-                self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
-            else:
-                raise ValueError("No evaluation manager available. Provide model_path or train first.")
+        if model_path:
+            # Load model from path for evaluation
+            peft_config = PeftConfig.from_pretrained(model_path)
+            base_model = WhisperForConditionalGeneration.from_pretrained(
+                peft_config.base_model_name_or_path,
+                load_in_8bit=True,
+                device_map="auto"
+            )
+            model = PeftModel.from_pretrained(base_model, model_path)
+            processor = WhisperProcessor.from_pretrained(
+                peft_config.base_model_name_or_path,
+                language="ar",
+                task="transcribe"
+            )
+            
+            # Create evaluation manager with loaded model
+            self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
+        
+        elif self.evaluation_manager is None:
+            raise ValueError("No evaluation manager available. Provide model_path or train first.")
         
         # Load dataset for evaluation
         dataset = self.dataset_manager.load_datasets(self.evaluation_manager.processor)
