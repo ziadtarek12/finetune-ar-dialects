@@ -750,11 +750,19 @@ Examples:
     # Model and data arguments
     parser.add_argument("--model_name", default="openai/whisper-small",
                        help="Whisper model to fine-tune (default: openai/whisper-small)")
+    parser.add_argument("--model_size", default="small", 
+                       choices=["tiny", "base", "small", "medium", "large"],
+                       help="Model size (default: small)")
     parser.add_argument("--dialect", default="egyptian",
                        choices=["egyptian", "gulf", "iraqi", "levantine", "maghrebi", "all"],
                        help="Arabic dialect to train on (default: egyptian)")
+    parser.add_argument("--data_source", default="huggingface",
+                       choices=["huggingface", "local", "auto"],
+                       help="Data source (default: huggingface)")
     parser.add_argument("--use_local_data", action="store_true",
                        help="Use local datasets instead of HuggingFace")
+    parser.add_argument("--load_in_8bit", action="store_true", default=True,
+                       help="Load model in 8-bit for memory efficiency (default: True)")
     
     # Training arguments
     parser.add_argument("--output_dir", default="./results",
@@ -784,25 +792,31 @@ Examples:
     print("🚀 Arabic Dialect PEFT Trainer")
     print("=" * 50)
     print(f"📊 Dialect: {args.dialect}")
-    print(f"🤖 Model: {args.model_name}")
+    print(f"🤖 Model: {args.model_name} ({args.model_size})")
     print(f"📁 Output: {args.output_dir}")
+    print(f"📂 Data source: {args.data_source}")
     print(f"⚡ Quick test: {args.quick_test}")
     print(f"🔧 PEFT enabled: {args.use_peft and not args.no_peft}")
-    print(f"📈 Max steps: {args.max_steps}")
+    print(f"� 8-bit loading: {args.load_in_8bit}")
+    print(f"�📈 Max steps: {args.max_steps}")
     print(f"🕒 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 50)
     
-    # Handle PEFT flag logic
+    # Handle argument logic for backward compatibility
     use_peft = args.use_peft and not args.no_peft
-    use_huggingface = not args.use_local_data
+    
+    # Data source logic
+    if args.data_source == "local" or args.use_local_data:
+        use_huggingface = False
+    elif args.data_source == "huggingface":
+        use_huggingface = True
+    else:  # auto
+        use_huggingface = True  # Default to HuggingFace
     
     # Initialize trainer
     trainer = ArabicDialectPEFTTrainer(
         model_name=args.model_name,
         dialect=args.dialect,
-        use_peft=use_peft,
-        output_dir=args.output_dir,
-        use_huggingface=use_huggingface,
         quick_test=args.quick_test,
         seed=args.seed
     )
