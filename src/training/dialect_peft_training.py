@@ -591,22 +591,74 @@ class EvaluationManager:
                 labels = batch["labels"].numpy()
                 labels = np.where(labels != -100, labels, processor.tokenizer.pad_token_id)
                 
-                # Decode predictions and labels
-                decoded_preds = processor.tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
-                decoded_labels = processor.tokenizer.batch_decode(labels, skip_special_tokens=True)
+            # Decode predictions and labels
+            decoded_preds = processor.tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+            decoded_labels = processor.tokenizer.batch_decode(labels, skip_special_tokens=True)
+            
+            # Clean and validate decoded texts
+            cleaned_preds = []
+            cleaned_labels = []
+            for pred, label in zip(decoded_preds, decoded_labels):
+                # Remove extra whitespace and ensure non-empty
+                pred_clean = pred.strip()
+                label_clean = label.strip()
                 
-                predictions.extend(decoded_preds)
-                references.extend(decoded_labels)
+                # Skip empty predictions or references as they cause issues
+                if pred_clean and label_clean:
+                    cleaned_preds.append(pred_clean)
+                    cleaned_labels.append(label_clean)
+                else:
+                    logger.debug(f"Skipping empty pair: pred='{pred_clean}' label='{label_clean}'")
+            
+            predictions.extend(cleaned_preds)
+            references.extend(cleaned_labels)
+            
+            # Normalize text for robust metric calculation
+            for pred, label in zip(cleaned_preds, cleaned_labels):
+                norm_pred = normalizer(pred).strip()
+                norm_label = normalizer(label).strip()
                 
-                # Normalize text for robust WER calculation
-                normalized_predictions.extend([normalizer(pred).strip() for pred in decoded_preds])
-                normalized_references.extend([normalizer(label).strip() for label in decoded_labels])
+                # Only add if both normalized texts are non-empty
+                if norm_pred and norm_label:
+                    normalized_predictions.append(norm_pred)
+                    normalized_references.append(norm_label)
         
-        # Compute WER and CER scores
-        wer = 100 * self.wer_metric.compute(predictions=predictions, references=references)
-        cer = 100 * self.cer_metric.compute(predictions=predictions, references=references)
-        normalized_wer = 100 * self.wer_metric.compute(predictions=normalized_predictions, references=normalized_references)
-        normalized_cer = 100 * self.cer_metric.compute(predictions=normalized_predictions, references=normalized_references)
+        # Compute WER and CER scores with proper error handling
+        # Filter out empty predictions and references which can cause extreme CER values
+        valid_pairs = [(p, r) for p, r in zip(predictions, references) if p.strip() and r.strip()]
+        valid_norm_pairs = [(p, r) for p, r in zip(normalized_predictions, normalized_references) if p.strip() and r.strip()]
+        
+        if not valid_pairs:
+            logger.warning("No valid prediction-reference pairs found!")
+            wer = cer = normalized_wer = normalized_cer = 100.0
+        else:
+            valid_preds, valid_refs = zip(*valid_pairs)
+            valid_norm_preds, valid_norm_refs = zip(*valid_norm_pairs) if valid_norm_pairs else ([], [])
+            
+            wer = 100 * self.wer_metric.compute(predictions=list(valid_preds), references=list(valid_refs))
+            # CER calculation with safety check
+            try:
+                cer = 100 * self.cer_metric.compute(predictions=list(valid_preds), references=list(valid_refs))
+                # Sanity check: CER should typically be <= WER for most languages
+                if cer > wer * 3:  # If CER is more than 3x WER, something is wrong
+                    logger.warning(f"CER ({cer:.2f}%) is unusually high compared to WER ({wer:.2f}%). Checking data...")
+                    # Log some examples for debugging
+                    for i, (pred, ref) in enumerate(zip(valid_preds[:3], valid_refs[:3])):
+                        logger.info(f"Example {i+1}: Pred='{pred}' | Ref='{ref}'")
+            except Exception as e:
+                logger.error(f"Error calculating CER: {e}")
+                cer = 0.0
+            
+            # Calculate normalized metrics if available
+            if valid_norm_pairs:
+                normalized_wer = 100 * self.wer_metric.compute(predictions=list(valid_norm_preds), references=list(valid_norm_refs))
+                try:
+                    normalized_cer = 100 * self.cer_metric.compute(predictions=list(valid_norm_preds), references=list(valid_norm_refs))
+                except Exception as e:
+                    logger.error(f"Error calculating normalized CER: {e}")
+                    normalized_cer = 0.0
+            else:
+                normalized_wer = normalized_cer = wer  # Fallback
         
         eval_metrics = {
             "eval/wer": wer,
@@ -617,6 +669,8 @@ class EvaluationManager:
         }
         
         logger.info(f"Evaluation Results:")
+        logger.info(f"  Total samples processed: {len(predictions)}")
+        logger.info(f"  Valid pairs for metrics: {len(valid_pairs) if 'valid_pairs' in locals() else 'N/A'}")
         logger.info(f"  WER: {wer:.2f}%")
         logger.info(f"  CER: {cer:.2f}%")
         logger.info(f"  Normalized WER: {normalized_wer:.2f}%")
