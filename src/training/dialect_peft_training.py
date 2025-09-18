@@ -39,7 +39,8 @@ from transformers import (
     TrainerState,
     TrainerControl
 )
-from peft import LoraConfig, get_peft_model, prepare_model_for_int8_training, PeftModel
+from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+from peft import LoraConfig, get_peft_model, PeftModel
 import evaluate
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
@@ -182,19 +183,17 @@ class MetricsCalculator:
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     """
-    Data collator for speech-to-text models.
-    Adapted from the original paper's implementation.
+    Data collator for speech-to-text models - Updated from notebook implementation.
     """
     processor: Any
-    decoder_start_token_id: int
 
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         # Split inputs and labels since they have different lengths
         input_features = [{"input_features": feature["input_features"]} for feature in features]
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
-
         batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
         
+        # Get tokenized label sequences  
+        label_features = [{"input_ids": feature["labels"]} for feature in features]
         labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
         
         # Replace padding with -100 to ignore loss correctly
@@ -204,7 +203,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
         # If bos token is appended in previous tokenization step,
         # cut bos token here as it's append later anyways
-        if (labels[:, 0] == self.decoder_start_token_id).all().cpu().item():
+        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
             labels = labels[:, 1:]
 
         batch["labels"] = labels
@@ -302,20 +301,25 @@ class ArabicDialectPEFTTrainer:
         (self.output_dir / "results").mkdir(exist_ok=True)
     
     def load_model_and_processor(self):
-        """Load Whisper model and processor with optional PEFT configuration."""
+        """Load Whisper model and processor with PEFT configuration."""
         logger.info(f"Loading {self.model_name} for dialect: {self.dialect}")
         
         # Load processor
-        self.processor = WhisperProcessor.from_pretrained(self.model_name)
+        self.processor = WhisperProcessor.from_pretrained(self.model_name, language="ar", task="transcribe")
         
-        # Load model with optional quantization
+        # Load model with 8-bit quantization
         if self.load_in_8bit and self.use_peft:
             self.model = WhisperForConditionalGeneration.from_pretrained(
                 self.model_name,
                 load_in_8bit=True,
                 device_map="auto"
             )
-            self.model = prepare_model_for_int8_training(self.model)
+            
+            # Enable gradient computation for input embeddings (from notebook)
+            def make_inputs_require_grad(module, input, output):
+                output.requires_grad_(True)
+            
+            self.model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
         else:
             self.model = WhisperForConditionalGeneration.from_pretrained(self.model_name)
         
@@ -338,11 +342,11 @@ class ArabicDialectPEFTTrainer:
             lora_alpha=config['lora_alpha'],
             target_modules=config['target_modules'],
             lora_dropout=config['lora_dropout'],
-            bias="none",
-            task_type="FEATURE_EXTRACTION"
+            bias="none"
         )
         
         self.model = get_peft_model(self.model, peft_config)
+        self.model.print_trainable_parameters()
         logger.info("PEFT LoRA configuration applied")
     
     def _count_trainable_parameters(self) -> int:
@@ -565,47 +569,8 @@ class ArabicDialectPEFTTrainer:
         batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
         return batch
     
-    def setup_model_and_peft(self) -> Tuple[torch.nn.Module, LoraConfig]:
-        """Setup base model with PEFT configuration."""
-        
-        logger.info(f"Loading {self.model_name} with 8-bit quantization...")
-        
-        # Load base model with quantization for memory efficiency
-        model = WhisperForConditionalGeneration.from_pretrained(
-            self.model_name,
-            load_in_8bit=True,
-            device_map="auto"
-        )
-        
-        # Prepare model for training
-        model = prepare_model_for_int8_training(model)
-        
-        # Setup LoRA configuration optimized for Arabic
-        lora_config = LoraConfig(
-            r=self.peft_config['lora_rank'],
-            lora_alpha=self.peft_config['lora_alpha'],
-            target_modules=self.peft_config['target_modules'],
-            lora_dropout=self.peft_config['lora_dropout'],
-            bias="none",
-            task_type="FEATURE_EXTRACTION"
-        )
-        
-        # Apply PEFT
-        model = get_peft_model(model, lora_config)
-        
-        # Enable gradient computation for input embeddings
-        def make_inputs_require_grad(module, input, output):
-            output.requires_grad_(True)
-        
-        model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
-        
-        logger.info("PEFT model setup complete")
-        model.print_trainable_parameters()
-        
-        return model, lora_config
-    
     def compute_metrics(self, pred, processor):
-        """Compute WER and CER metrics following the original paper."""
+        """Compute WER and CER metrics - Updated from notebook implementation."""
         pred_ids = pred.predictions
         label_ids = pred.label_ids
         
@@ -616,17 +581,14 @@ class ArabicDialectPEFTTrainer:
         pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)
         label_str = processor.batch_decode(label_ids, skip_special_tokens=True)
         
-        # Compute metrics
+        # Compute WER using evaluate library
         wer_metric = evaluate.load("wer")
-        cer_metric = evaluate.load("cer")
-        
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
-        cer = cer_metric.compute(predictions=pred_str, references=label_str)
         
-        return {"wer": wer, "cer": cer}
+        return {"wer": wer}
     
     def train(self, max_steps: int = 4000, eval_steps: int = 500):
-        """Train the PEFT model on dialect data."""
+        """Train the PEFT model on dialect data - Updated implementation."""
         
         # Apply quick test modifications
         if hasattr(self, 'quick_test') and self.quick_test:
@@ -637,8 +599,8 @@ class ArabicDialectPEFTTrainer:
         # Load datasets and processor
         dataset, processor = self.load_and_prepare_datasets()
         
-        # Setup model
-        model, lora_config = self.setup_model_and_peft()
+        # Load model and processor
+        self.load_model_and_processor()
         
         # Setup data collator
         data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
@@ -676,20 +638,20 @@ class ArabicDialectPEFTTrainer:
             seed=self.seed,
         )
         
-        # Setup trainer
+        # Setup trainer with updated compute_metrics
         trainer = Seq2SeqTrainer(
             args=training_args,
-            model=model,
+            model=self.model,
             train_dataset=dataset["train"],
             eval_dataset=dataset["test"],
             data_collator=data_collator,
-            tokenizer=processor.tokenizer,
+            tokenizer=processor.tokenizer,  # Updated from notebook
             compute_metrics=lambda pred: self.compute_metrics(pred, processor),
-            callbacks=[SavePeftModelCallback],
+            callbacks=[SavePeftModelCallback()],
         )
         
         # Disable cache for training
-        model.config.use_cache = False
+        self.model.config.use_cache = False
         
         logger.info(f"Starting training for {self.dialect} dialect...")
         
@@ -707,7 +669,7 @@ class ArabicDialectPEFTTrainer:
         
         logger.info(f"Training complete. Model saved to {final_model_path}")
         
-        return trainer, model
+        return trainer
 
 
 @dataclass  
@@ -736,14 +698,20 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 
 class SavePeftModelCallback(TrainerCallback):
-    """Callback to save only PEFT adapter weights, not the full model."""
+    """Callback to save only PEFT adapter weights - Updated from notebook."""
     
-    def on_save(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        checkpoint_folder = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+    def on_save(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+        
         peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
         kwargs["model"].save_pretrained(peft_model_path)
         
-        # Remove full model checkpoint to save space
         pytorch_model_path = os.path.join(checkpoint_folder, "pytorch_model.bin")
         if os.path.exists(pytorch_model_path):
             os.remove(pytorch_model_path)
