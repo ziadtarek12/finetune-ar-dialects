@@ -517,6 +517,7 @@ class EvaluationManager:
         self.dialect = dialect
         self.output_dir = output_dir
         self.wer_metric = evaluate.load("wer")
+        self.cer_metric = evaluate.load("cer")  # Add CER metric
     
     def evaluate_model(self, dataset: DatasetDict, model_path: str = None) -> Dict[str, float]:
         """Evaluate the trained PEFT model."""
@@ -601,19 +602,25 @@ class EvaluationManager:
                 normalized_predictions.extend([normalizer(pred).strip() for pred in decoded_preds])
                 normalized_references.extend([normalizer(label).strip() for label in decoded_labels])
         
-        # Compute WER scores
+        # Compute WER and CER scores
         wer = 100 * self.wer_metric.compute(predictions=predictions, references=references)
+        cer = 100 * self.cer_metric.compute(predictions=predictions, references=references)
         normalized_wer = 100 * self.wer_metric.compute(predictions=normalized_predictions, references=normalized_references)
+        normalized_cer = 100 * self.cer_metric.compute(predictions=normalized_predictions, references=normalized_references)
         
         eval_metrics = {
             "eval/wer": wer,
+            "eval/cer": cer,
             "eval/normalized_wer": normalized_wer,
+            "eval/normalized_cer": normalized_cer,
             "eval/samples": len(predictions)
         }
         
         logger.info(f"Evaluation Results:")
         logger.info(f"  WER: {wer:.2f}%")
+        logger.info(f"  CER: {cer:.2f}%")
         logger.info(f"  Normalized WER: {normalized_wer:.2f}%")
+        logger.info(f"  Normalized CER: {normalized_cer:.2f}%")
         logger.info(f"  Samples evaluated: {len(predictions)}")
         
         # Save evaluation results
