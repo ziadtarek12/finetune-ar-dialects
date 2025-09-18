@@ -443,9 +443,17 @@ class EvaluationManager:
         model.eval()
         model.config.use_cache = True
         
-        # Setup data collator and dataloader
+        # Optimized dataloader for faster evaluation - larger batch size and more workers
         data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
-        eval_dataloader = DataLoader(dataset["test"], batch_size=8, collate_fn=data_collator)
+        eval_batch_size = 32  # Increased from 8 for better GPU utilization
+        eval_dataloader = DataLoader(
+            dataset["test"], 
+            batch_size=eval_batch_size, 
+            collate_fn=data_collator,
+            num_workers=4,  # Parallel data loading
+            pin_memory=True,  # Faster GPU transfer
+            persistent_workers=True  # Keep workers alive between batches
+        )
         
         # Setup generation parameters
         forced_decoder_ids = processor.get_decoder_prompt_ids(language="ar", task="transcribe")
@@ -458,8 +466,9 @@ class EvaluationManager:
         normalized_references = []
         
         logger.info("Starting model evaluation...")
+        logger.info(f"Using batch size: {eval_batch_size} for faster evaluation")
         
-        # Evaluation loop
+        # Evaluation loop with optimized memory usage
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             with torch.no_grad():
                 # Move input features to device and ensure proper dtype
@@ -470,12 +479,19 @@ class EvaluationManager:
                 if hasattr(model, 'dtype'):
                     input_features = input_features.to(dtype=model.dtype)
                 
-                # Generate token ids with autocast for mixed precision
+                # Generate token ids with optimized settings for speed
                 with torch.cuda.amp.autocast():
                     generated_tokens = model.generate(
                         input_features=input_features,
                         forced_decoder_ids=forced_decoder_ids,
                         max_new_tokens=255,
+                        num_beams=1,  # Greedy decoding for speed
+                        do_sample=False,
+                        use_cache=True,
+                        pad_token_id=processor.tokenizer.pad_token_id,
+                        # Optimize for memory and speed
+                        output_scores=False,
+                        return_dict_in_generate=False
                     ).cpu().numpy()
                 
                 # Prepare label ids
