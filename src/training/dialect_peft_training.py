@@ -68,21 +68,21 @@ DIALECT_CONFIG = {
     'all': {'priority': 'high', 'data_size': 'extra_large'}
 }
 
-# PEFT configurations optimized for different model sizes
+# PEFT configurations optimized for different model sizes - matching working notebook
 PEFT_CONFIG = {
     'small': {
         'lora_rank': 32,
         'lora_alpha': 64,
-        'lora_dropout': 0.1,
-        'target_modules': ["q_proj", "v_proj", "k_proj", "out_proj", "fc1", "fc2"],
+        'lora_dropout': 0.05,  # Changed from 0.1 to match notebook
+        'target_modules': ["q_proj", "v_proj"],  # Simplified to match notebook exactly
         'learning_rate': 1e-3,
         'batch_size': 16
     },
     'medium': {
         'lora_rank': 32,
         'lora_alpha': 64,
-        'lora_dropout': 0.1,
-        'target_modules': ["q_proj", "v_proj", "k_proj", "out_proj", "fc1", "fc2"],
+        'lora_dropout': 0.05,  # Changed from 0.1 to match notebook
+        'target_modules': ["q_proj", "v_proj"],  # Simplified to match notebook exactly
         'learning_rate': 1e-3,
         'batch_size': 8
     },
@@ -492,18 +492,25 @@ class ModelManager:
         return model, processor
     
     def _setup_peft(self, model):
-        """Configure PEFT LoRA with optimized parameters."""
+        """Configure PEFT LoRA exactly like the working notebook."""
+        # Critical: Register forward hook for gradient computation (from notebook)
+        def make_inputs_require_grad(module, input, output):
+            output.requires_grad_(True)
+        
+        model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
+        
+        # Configure LoRA exactly like the working notebook
         peft_config = LoraConfig(
-            r=self.peft_config['lora_rank'],
-            lora_alpha=self.peft_config['lora_alpha'],
-            target_modules=self.peft_config['target_modules'],
-            lora_dropout=self.peft_config['lora_dropout'],
+            r=self.peft_config['lora_rank'],           # 32
+            lora_alpha=self.peft_config['lora_alpha'], # 64
+            target_modules=self.peft_config['target_modules'],  # ["q_proj", "v_proj"] 
+            lora_dropout=self.peft_config['lora_dropout'],      # 0.05
             bias="none"
         )
         
         model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
-        logger.info("PEFT LoRA configuration applied")
+        logger.info("PEFT LoRA configuration applied exactly like working notebook")
         
         return model
 
