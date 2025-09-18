@@ -988,8 +988,8 @@ Examples:
                        choices=["tiny", "base", "small", "medium", "large"],
                        help="Model size (default: small)")
     parser.add_argument("--dialect", default="egyptian",
-                       choices=["egyptian", "gulf", "iraqi", "levantine", "maghrebi", "all"],
-                       help="Arabic dialect to train on (default: egyptian)")
+                       choices=["egyptian", "gulf", "iraqi", "levantine", "maghrebi", "msa", "all"],
+                       help="Arabic dialect to train on: egyptian, gulf, iraqi, levantine, maghrebi, msa, all (default: egyptian)")
     parser.add_argument("--data_source", default="huggingface",
                        choices=["huggingface", "local", "auto"],
                        help="Data source (default: huggingface)")
