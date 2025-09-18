@@ -28,6 +28,8 @@ import logging
 import torch
 import numpy as np
 import evaluate
+import time
+import psutil
 from pathlib import Path
 from typing import Dict, List, Union, Tuple, Any
 from dataclasses import dataclass
@@ -108,6 +110,96 @@ HUGGINGFACE_DATASET_MAPPING = {
 # =============================================================================
 # UTILITY CLASSES
 # =============================================================================
+
+class MetricsTracker:
+    """Simple metrics tracking following original repository pattern."""
+    
+    def __init__(self, dialect: str, model_type: str, model_size: str, seed: int, output_dir: Path):
+        self.dialect = dialect
+        self.model_type = model_type  # 'peft' or 'finetune'
+        self.model_size = model_size
+        self.seed = seed
+        self.output_dir = output_dir
+        self.start_time = None
+        
+        # Follow original repository naming convention
+        self.results_filename = f"results_whisper-{model_size}-{model_type}_{dialect}_seed{seed}.json"
+        
+        # Create results directory structure like original repo
+        self.results_dir = output_dir / "results" / f"ex_{model_type}"
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.metrics = {
+            'experiment_name': f"whisper-{model_size}-{model_type}_{dialect}_seed{seed}",
+            'model_name': f"whisper-{model_size}",
+            'dialect': dialect,
+            'method': model_type,
+            'seed': seed,
+            'start_time': None,
+            'end_time': None,
+            'training_time_seconds': 0,
+            'peak_memory_mb': 0,
+            'total_params': 0,
+            'trainable_params': 0,
+            'trainable_percentage': 0,
+            'wer': 0,
+            'cer': 0,
+            'final_loss': 0
+        }
+    
+    def start_training(self):
+        """Start timing the training."""
+        self.start_time = time.time()
+        self.metrics['start_time'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+    
+    def update_memory(self):
+        """Update peak memory usage."""
+        if torch.cuda.is_available():
+            peak_memory = torch.cuda.max_memory_allocated() / 1024**2  # Convert to MB
+            self.metrics['peak_memory_mb'] = max(self.metrics['peak_memory_mb'], peak_memory)
+    
+    def update_model_info(self, model, model_type: str):
+        """Update model parameter information."""
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        
+        self.metrics.update({
+            'model_type': model_type,
+            'total_params': total_params,
+            'trainable_params': trainable_params,
+            'trainable_percentage': (trainable_params / total_params) * 100 if total_params > 0 else 0
+        })
+    
+    def end_training(self, wer: float = 0, cer: float = 0, final_loss: float = 0):
+        """End timing and save metrics following original repository format."""
+        if self.start_time:
+            self.metrics['training_time_seconds'] = time.time() - self.start_time
+            self.metrics['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Update final metrics
+        self.metrics.update({
+            'wer': wer,
+            'cer': cer, 
+            'final_loss': final_loss
+        })
+        
+        # Save in original repository format and location
+        results_file = self.results_dir / self.results_filename
+        with open(results_file, 'w') as f:
+            json.dump(self.metrics, f, indent=2)
+        
+        # Also save timing file like original repository
+        timing_file = self.results_dir / f"training_time_{self.dialect}_{self.model_type}_{self.seed}.txt"
+        with open(timing_file, 'w') as f:
+            f.write(f"Total training time: {self.metrics['training_time_seconds']:.2f} seconds or {self.metrics['training_time_seconds']/3600:.2f} hours")
+        
+        logger.info(f"Results saved to: {results_file}")
+        logger.info(f"Timing saved to: {timing_file}")
+        return self.metrics
+        logger.info(f"Detailed metrics saved to: {detailed_metrics_file}")
+        return self.metrics
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -626,6 +718,17 @@ class ArabicDialectPEFTTrainer:
     def train(self, max_steps: int = 4000, eval_steps: int = 500):
         """Main training method - orchestrates the entire training process."""
         
+        # Initialize metrics tracker following original repository pattern
+        model_type = "peft" if self.use_peft else "finetune" 
+        self.metrics_tracker = MetricsTracker(
+            dialect=self.dialect,
+            model_type=model_type,
+            model_size=self.model_size,
+            seed=self.seed,
+            output_dir=self.output_dir
+        )
+        self.metrics_tracker.start_training()
+        
         # Apply quick test modifications
         if self.quick_test:
             logger.info("Quick test mode enabled - using minimal training configuration")
@@ -635,6 +738,10 @@ class ArabicDialectPEFTTrainer:
         # Step 1: Load model and processor
         logger.info("Step 1: Loading model and processor...")
         model, processor = self.model_manager.load_model_and_processor()
+        
+        # Track model info
+        model_type_desc = "PEFT_LoRA" if self.use_peft else "Full_FineTune"
+        self.metrics_tracker.update_model_info(model, model_type_desc)
         
         # Step 2: Load and prepare datasets
         logger.info("Step 2: Loading and preparing datasets...")
@@ -650,19 +757,41 @@ class ArabicDialectPEFTTrainer:
         # Step 5: Train the model
         logger.info(f"Step 4: Starting training for {self.dialect} dialect...")
         model.config.use_cache = False  # Disable cache for training
+        
+        # Update memory before training
+        self.metrics_tracker.update_memory()
+        
         trainer.train()
+        
+        # Update memory after training  
+        self.metrics_tracker.update_memory()
         
         # Step 6: Save final model
         logger.info("Step 5: Saving final model...")
         final_model_path = self.output_dir / f"whisper-{self.model_size}-{self.dialect}-peft-final"
         trainer.save_model(str(final_model_path))
         
-        # Save training metrics
+        # Get final loss from training history
+        final_loss = 0
+        if trainer.state.log_history:
+            final_loss = trainer.state.log_history[-1].get('train_loss', 0)
+        
+        # Run evaluation to get WER and CER
+        logger.info("Step 6: Running final evaluation...")
+        eval_results = self.evaluation_manager.evaluate_model(dataset, str(final_model_path))
+        final_wer = eval_results.get('eval/wer', 0)
+        final_cer = eval_results.get('eval/cer', 0)  # Get CER too
+        
+        # End metrics tracking and save in original repository format
+        self.metrics_tracker.end_training(wer=final_wer, cer=final_cer, final_loss=final_loss)
+        
+        # Save training metrics from trainer
         metrics_path = final_model_path / "training_metrics.json"
         with open(metrics_path, 'w') as f:
             json.dump(trainer.state.log_history, f, indent=2)
         
         logger.info(f"Training complete. Model saved to {final_model_path}")
+        logger.info(f"Final WER: {final_wer:.2f}%, Final CER: {final_cer:.2f}%, Final Loss: {final_loss:.4f}")
         
         return trainer
     
