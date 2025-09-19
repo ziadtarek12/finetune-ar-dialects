@@ -42,6 +42,8 @@ from transformers import (
     TrainerCallback, TrainingArguments, TrainerState, TrainerControl
 )
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+from huggingface_hub import login, HfFolder
+import os
 
 # PEFT imports
 from peft import LoraConfig, get_peft_model, PeftModel, PeftConfig
@@ -783,8 +785,15 @@ class ArabicDialectPEFTTrainer:
         (self.output_dir / "logs").mkdir(exist_ok=True)
         (self.output_dir / "results").mkdir(exist_ok=True)
     
-    def train(self, max_steps: int = 4000, eval_steps: int = 500):
-        """Main training method - orchestrates the entire training process."""
+    def train(self, max_steps: int = 4000, eval_steps: int = 500, push_to_hub: bool = False, hub_model_id: str = None):
+        """Main training method - orchestrates the entire training process.
+        
+        Args:
+            max_steps: Maximum number of training steps
+            eval_steps: Steps between evaluations
+            push_to_hub: Whether to push the model to HuggingFace Hub
+            hub_model_id: The model ID on HuggingFace Hub (e.g., 'username/model-name')
+        """
         
         # Initialize metrics tracker following original repository pattern
         model_type = "peft" if self.use_peft else "finetune" 
@@ -857,6 +866,21 @@ class ArabicDialectPEFTTrainer:
         metrics_path = final_model_path / "training_metrics.json"
         with open(metrics_path, 'w') as f:
             json.dump(trainer.state.log_history, f, indent=2)
+
+        # Push to Hub if requested
+        if push_to_hub and hub_model_id:
+            logger.info(f"Pushing model to Hugging Face Hub: {hub_model_id}")
+            try:
+                # Save processor configuration
+                processor.save_pretrained(str(final_model_path))
+                
+                # Push to hub
+                model.push_to_hub(hub_model_id)
+                processor.push_to_hub(hub_model_id)
+                
+                logger.info(f"Successfully pushed model to {hub_model_id}")
+            except Exception as e:
+                logger.error(f"Failed to push to Hugging Face Hub: {e}")
         
         logger.info(f"Training complete. Model saved to {final_model_path}")
         logger.info(f"Final WER: {final_wer:.2f}%, Final CER: {final_cer:.2f}%, Final Loss: {final_loss:.4f}")
@@ -1019,6 +1043,14 @@ Examples:
                        help="Run minimal training for testing")
     parser.add_argument("--evaluate_only", type=str,
                        help="Path to trained model for evaluation only")
+    
+    # Hugging Face Hub arguments
+    parser.add_argument("--push_to_hub", action="store_true",
+                       help="Push the trained model to Hugging Face Hub")
+    parser.add_argument("--hub_model_id", type=str,
+                       help="Hugging Face Hub model ID (e.g., 'username/model-name')")
+    parser.add_argument("--hub_token", type=str,
+                       help="Hugging Face Hub API token")
     
     args = parser.parse_args()
     

@@ -78,8 +78,15 @@ for dialect in dialects:
         --output_dir ./results/{dialect}
 ```
 
-### Option 3: Statistical Significance (Multiple Seeds)
+### Option 3: Statistical Significance (Multiple Seeds) with HuggingFace Hub Integration
 ```python
+# First, set up your HuggingFace credentials
+from huggingface_hub import login
+
+# Set your HuggingFace token (get it from https://huggingface.co/settings/tokens)
+HF_TOKEN = "your_token_here"  # Replace with your actual token
+login(token=HF_TOKEN)
+
 # Run with multiple seeds for robust evaluation
 seeds = [42, 84, 168]
 
@@ -90,7 +97,16 @@ for seed in seeds:
         --use_peft \
         --load_in_8bit \
         --seed {seed} \
-        --output_dir ./results/egyptian_seed{seed}
+        --output_dir ./results/egyptian_seed{seed} \
+        --push_to_hub \
+        --hub_model_id "your-username/whisper-arabic-egyptian-peft-seed{seed}" \
+        --hub_token $HF_TOKEN
+
+# This will:
+# ✅ Train the model with different seeds
+# ✅ Save checkpoints locally
+# ✅ Push each model to HuggingFace Hub automatically
+# ✅ Include all necessary model configs and tokenizers
 ```
 
 ## 📊 Generate Publication Results
@@ -203,6 +219,54 @@ from datasets import load_dataset
 dataset = load_dataset("mozilla-foundation/common_voice_16_1", "ar")
 print(f"Dataset loaded: {len(dataset['train'])} samples")
 ```
+
+## 🤗 HuggingFace Hub Integration
+
+### Setting Up HuggingFace Access
+```python
+from huggingface_hub import login
+
+# Method 1: Using environment variable
+import os
+os.environ["HUGGINGFACE_TOKEN"] = "your_token_here"  # Replace with your token
+login()
+
+# Method 2: Direct login
+login(token="your_token_here")  # Replace with your token
+```
+
+### Pushing Single Models to Hub
+```python
+!python dialect_peft_training.py \
+    --dialect egyptian \
+    --use_peft \
+    --load_in_8bit \
+    --seed 42 \
+    --push_to_hub \
+    --hub_model_id "your-username/whisper-arabic-egyptian-peft" \
+    --hub_token $HUGGINGFACE_TOKEN
+```
+
+### Managing Multiple Models
+```python
+# Create a unique model name for each experiment
+model_name = f"whisper-arabic-{dialect}-peft-seed{seed}"
+hub_model_id = f"your-username/{model_name}"
+
+!python dialect_peft_training.py \
+    --dialect {dialect} \
+    --seed {seed} \
+    --push_to_hub \
+    --hub_model_id {hub_model_id} \
+    --hub_token $HUGGINGFACE_TOKEN
+```
+
+### 🔍 Tips for HuggingFace Hub Usage
+1. **Token Security**: Never share or commit your HuggingFace token
+2. **Model Cards**: Generated automatically with experiment details
+3. **Storage**: Models are versioned on the Hub
+4. **Collaboration**: Easy sharing with research community
+5. **Recovery**: Download models back to Kaggle if needed
 
 ## 📊 Publication-Ready Outputs
 
