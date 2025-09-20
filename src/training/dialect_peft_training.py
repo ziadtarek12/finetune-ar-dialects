@@ -1090,7 +1090,7 @@ Examples:
         model_name=args.model_name,
         dialect=args.dialect,
         quick_test=args.quick_test,
-        seed=args.seed
+        seed=args.seed,
         push_to_hub=args.push_to_hub,
         hub_token=args.hub_token,
         hub_model_id=args.hub_model_id,
