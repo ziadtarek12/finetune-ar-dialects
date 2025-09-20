@@ -1096,7 +1096,7 @@ Examples:
         use_huggingface = True
     else:  # auto
         use_huggingface = True  # Default to HuggingFace
-    
+    print(args.hub_token)
     # Initialize trainer
     trainer = ArabicDialectPEFTTrainer(
         model_name=args.model_name,
