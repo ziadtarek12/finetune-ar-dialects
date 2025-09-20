@@ -881,10 +881,10 @@ class ArabicDialectPEFTTrainer:
                 processor.save_pretrained(str(final_model_path))
                 
                 # Push to hub
-                model.push_to_hub(hub_model_id)
-                processor.push_to_hub(hub_model_id)
+                model.push_to_hub(self.hub_model_id)
+                processor.push_to_hub(self.hub_model_id)
                 
-                logger.info(f"Successfully pushed model to {hub_model_id}")
+                logger.info(f"Successfully pushed model to {self.hub_model_id}")
             except Exception as e:
                 logger.error(f"Failed to push to Hugging Face Hub: {e}")
         
