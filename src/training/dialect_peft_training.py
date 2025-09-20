@@ -733,7 +733,10 @@ class ArabicDialectPEFTTrainer:
         load_in_8bit: bool = True,
         use_huggingface: bool = True,
         quick_test: bool = False,
-        seed: int = 42
+        seed: int = 42,
+        push_to_hub=True,
+        hub_model_id=None,
+        hub_token=None
     ):
         # Core configuration
         self.model_name = model_name
@@ -744,7 +747,9 @@ class ArabicDialectPEFTTrainer:
         self.use_huggingface = use_huggingface
         self.quick_test = quick_test
         self.seed = seed
-        
+        self.push_to_hub = push_to_hub
+        self.hub_token = hub_token or os.getenv("HUGGINGFACE_HUB_TOKEN", None)
+        self.hub_model_id = hub_model_id
         # Extract model size and get PEFT config
         self.model_size = self._extract_model_size(model_name)
         self.peft_config = PEFT_CONFIG[self.model_size]
@@ -785,7 +790,7 @@ class ArabicDialectPEFTTrainer:
         (self.output_dir / "logs").mkdir(exist_ok=True)
         (self.output_dir / "results").mkdir(exist_ok=True)
     
-    def train(self, max_steps: int = 4000, eval_steps: int = 500, push_to_hub: bool = False, hub_model_id: str = None):
+    def train(self, max_steps: int = 4000, eval_steps: int = 500):
         """Main training method - orchestrates the entire training process.
         
         Args:
@@ -858,7 +863,8 @@ class ArabicDialectPEFTTrainer:
         eval_results = self.evaluation_manager.evaluate_model(dataset, str(final_model_path))
         final_wer = eval_results.get('eval/wer', 0)
         final_cer = eval_results.get('eval/cer', 0)  # Get CER too
-        
+        logger.info(f"Final Evaluation - WER: {final_wer:.2f}%, CER: {final_cer:.2f}%, Loss: {final_loss:.4f}")
+
         # End metrics tracking and save in original repository format
         self.metrics_tracker.end_training(wer=final_wer, cer=final_cer, final_loss=final_loss)
         
@@ -868,7 +874,7 @@ class ArabicDialectPEFTTrainer:
             json.dump(trainer.state.log_history, f, indent=2)
 
         # Push to Hub if requested
-        if push_to_hub and hub_model_id:
+        if self.push_to_hub and self.hub_model_id:
             logger.info(f"Pushing model to Hugging Face Hub: {hub_model_id}")
             try:
                 # Save processor configuration
@@ -1085,6 +1091,9 @@ Examples:
         dialect=args.dialect,
         quick_test=args.quick_test,
         seed=args.seed
+        push_to_hub=args.push_to_hub,
+        hub_token=args.hub_token,
+        hub_model_id=args.hub_model_id,
     )
     
     # Evaluation-only mode
@@ -1111,17 +1120,17 @@ Examples:
     print("✅ Training completed successfully!")
     
     # Optional post-training evaluation
-    if not args.quick_test:
-        print("📊 Running post-training evaluation...")
-        eval_results = trainer.evaluate_model()
-        print(f"✅ Evaluation completed!")
-        print(f"   WER: {eval_results['eval/wer']:.2f}%")
-        print(f"   Normalized WER: {eval_results['eval/normalized_wer']:.2f}%")
-    else:
-        print("💡 You can run evaluation later with:")
-        final_model_path = trainer.output_dir / f"whisper-{trainer.model_size}-{args.dialect}-peft-final"
-        print(f"   python src/training/dialect_peft_training.py --evaluate_only {final_model_path} --dialect {args.dialect}")
-    
+    # if not args.quick_test:
+    #     print("📊 Running post-training evaluation...")
+    #     eval_results = trainer.evaluate_model()
+    #     print(f"✅ Evaluation completed!")
+    #     print(f"   WER: {eval_results['eval/wer']:.2f}%")
+    #     print(f"   Normalized WER: {eval_results['eval/normalized_wer']:.2f}%")
+    # else:
+    #     print("💡 You can run evaluation later with:")
+    #     final_model_path = trainer.output_dir / f"whisper-{trainer.model_size}-{args.dialect}-peft-final"
+    #     print(f"   python src/training/dialect_peft_training.py --evaluate_only {final_model_path} --dialect {args.dialect}")
+    #
     print("🎉 All done!")
 
 
