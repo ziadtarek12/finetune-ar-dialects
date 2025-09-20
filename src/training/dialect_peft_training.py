@@ -44,15 +44,27 @@ from transformers import (
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from huggingface_hub import login, HfFolder
 import os
-
+import sys
 # PEFT imports
 from peft import LoraConfig, get_peft_model, PeftModel, PeftConfig
 
 # Set up logging
+root_logger = logging.getLogger()
+
+# Remove all existing handlers from the root logger
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+# ----------------------------------------
+
+# --- Now, Apply Your Desired Configuration ---
+# This will now work correctly
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    stream=sys.stdout  # Direct output to the notebook cell
 )
+
+# You can now get any logger and it will work
 logger = logging.getLogger(__name__)
 
 
