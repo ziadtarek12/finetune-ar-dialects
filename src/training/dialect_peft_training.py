@@ -126,7 +126,7 @@ HUGGINGFACE_DATASET_MAPPING = {
 # =============================================================================
 
 class MetricsTracker:
-    """Simple metrics tracking following original repository pattern."""
+    """Enhanced metrics tracking with comprehensive LORA-specific analysis."""
     
     def __init__(self, dialect: str, model_type: str, model_size: str, seed: int, output_dir: Path):
         self.dialect = dialect
@@ -135,13 +135,21 @@ class MetricsTracker:
         self.seed = seed
         self.output_dir = output_dir
         self.start_time = None
+        self.step_metrics = []  # Store per-step metrics
+        self.layer_metrics = {}  # Store layer-wise metrics
+        self.gradient_history = []  # Store gradient statistics
         
         # Follow original repository naming convention
         self.results_filename = f"results_whisper-{model_size}-{model_type}_{dialect}_seed{seed}.json"
+        self.detailed_filename = f"detailed_metrics_whisper-{model_size}-{model_type}_{dialect}_seed{seed}.json"
         
         # Create results directory structure like original repo
         self.results_dir = output_dir / "results" / f"ex_{model_type}"
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create detailed metrics subdirectory
+        self.detailed_dir = self.results_dir / "detailed"
+        self.detailed_dir.mkdir(parents=True, exist_ok=True)
         
         self.metrics = {
             'experiment_name': f"whisper-{model_size}-{model_type}_{dialect}_seed{seed}",
@@ -158,7 +166,25 @@ class MetricsTracker:
             'trainable_percentage': 0,
             'wer': 0,
             'cer': 0,
-            'final_loss': 0
+            'final_loss': 0,
+            
+            # Enhanced LORA-specific metrics
+            'lora_config': {},
+            'parameter_efficiency_ratio': 0,
+            'memory_efficiency_ratio': 0,
+            'training_efficiency_score': 0,
+            'convergence_step': 0,
+            'gradient_norm_stats': {},
+            'layer_adaptation_stats': {},
+            'performance_per_param': 0,
+            'lora_rank': 0,
+            'lora_alpha': 0,
+            'lora_dropout': 0,
+            'target_modules_count': 0,
+            'adapter_weights_norm': 0,
+            'base_model_frozen_params': 0,
+            'effective_rank': 0,
+            'adaptation_magnitude': 0
         }
     
     def start_training(self):
@@ -174,46 +200,342 @@ class MetricsTracker:
             peak_memory = torch.cuda.max_memory_allocated() / 1024**2  # Convert to MB
             self.metrics['peak_memory_mb'] = max(self.metrics['peak_memory_mb'], peak_memory)
     
-    def update_model_info(self, model, model_type: str):
-        """Update model parameter information."""
+    def update_model_info(self, model, model_type: str, lora_config=None):
+        """Update comprehensive model parameter information including LORA specifics."""
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         
+        # Basic metrics
         self.metrics.update({
             'model_type': model_type,
             'total_params': total_params,
             'trainable_params': trainable_params,
             'trainable_percentage': (trainable_params / total_params) * 100 if total_params > 0 else 0
         })
+        
+        # LORA-specific metrics
+        if lora_config and model_type == 'peft':
+            self.metrics.update({
+                'lora_config': {
+                    'r': getattr(lora_config, 'r', 0),
+                    'lora_alpha': getattr(lora_config, 'lora_alpha', 0),
+                    'lora_dropout': getattr(lora_config, 'lora_dropout', 0),
+                    'target_modules': getattr(lora_config, 'target_modules', [])
+                },
+                'lora_rank': getattr(lora_config, 'r', 0),
+                'lora_alpha': getattr(lora_config, 'lora_alpha', 0),
+                'lora_dropout': getattr(lora_config, 'lora_dropout', 0),
+                'target_modules_count': len(getattr(lora_config, 'target_modules', [])),
+                'parameter_efficiency_ratio': trainable_params / total_params,
+                'base_model_frozen_params': total_params - trainable_params
+            })
+            
+            # Calculate adapter-specific metrics
+            adapter_params = 0
+            adapter_norm = 0.0
+            
+            for name, param in model.named_parameters():
+                if 'lora_' in name and param.requires_grad:
+                    adapter_params += param.numel()
+                    adapter_norm += param.data.norm().item()
+            
+            self.metrics.update({
+                'adapter_params': adapter_params,
+                'adapter_weights_norm': adapter_norm,
+                'effective_rank': self._calculate_effective_rank(model)
+            })
     
-    def end_training(self, wer: float = 0, cer: float = 0, final_loss: float = 0):
-        """End timing and save metrics following original repository format."""
+    def _calculate_effective_rank(self, model):
+        """Calculate effective rank of LORA adapters."""
+        try:
+            effective_ranks = []
+            for name, module in model.named_modules():
+                if hasattr(module, 'lora_A') and hasattr(module, 'lora_B'):
+                    # Calculate effective rank as approximation
+                    A = module.lora_A.default.weight.data
+                    B = module.lora_B.default.weight.data
+                    combined = torch.mm(B, A)
+                    s = torch.linalg.svdvals(combined)
+                    # Effective rank using 90% energy criterion
+                    cumsum = torch.cumsum(s**2, dim=0)
+                    total_energy = cumsum[-1]
+                    eff_rank = torch.sum(cumsum < 0.9 * total_energy).item() + 1
+                    effective_ranks.append(eff_rank)
+            
+            return np.mean(effective_ranks) if effective_ranks else 0
+        except:
+            return 0
+    
+    def record_step_metrics(self, step: int, loss: float, learning_rate: float, 
+                          gradient_norm: float = None, memory_usage: float = None):
+        """Record per-step training metrics for detailed analysis."""
+        step_data = {
+            'step': step,
+            'loss': loss,
+            'learning_rate': learning_rate,
+            'timestamp': time.time() - self.start_time if self.start_time else 0
+        }
+        
+        if gradient_norm is not None:
+            step_data['gradient_norm'] = gradient_norm
+            
+        if memory_usage is not None:
+            step_data['memory_usage_mb'] = memory_usage
+            
+        self.step_metrics.append(step_data)
+        
+        # Update gradient statistics
+        if gradient_norm is not None:
+            self.gradient_history.append(gradient_norm)
+            if len(self.gradient_history) >= 10:  # Keep rolling statistics
+                recent_grads = self.gradient_history[-100:]  # Last 100 steps
+                self.metrics['gradient_norm_stats'] = {
+                    'mean': np.mean(recent_grads),
+                    'std': np.std(recent_grads),
+                    'min': np.min(recent_grads),
+                    'max': np.max(recent_grads),
+                    'current': gradient_norm
+                }
+    
+    def analyze_layer_adaptation(self, model, step: int):
+        """Analyze how different layers are adapting during LORA training."""
+        if self.model_type != 'peft':
+            return
+            
+        layer_stats = {}
+        
+        for name, param in model.named_parameters():
+            if 'lora_' in name and param.requires_grad:
+                layer_key = name.split('.lora_')[0]  # Get base layer name
+                
+                if layer_key not in layer_stats:
+                    layer_stats[layer_key] = {
+                        'param_count': 0,
+                        'total_norm': 0,
+                        'grad_norm': 0,
+                        'updates': []
+                    }
+                
+                layer_stats[layer_key]['param_count'] += param.numel()
+                layer_stats[layer_key]['total_norm'] += param.data.norm().item()
+                
+                if param.grad is not None:
+                    layer_stats[layer_key]['grad_norm'] += param.grad.data.norm().item()
+        
+        # Store layer statistics
+        self.layer_metrics[step] = layer_stats
+        
+        # Update running layer adaptation statistics
+        if layer_stats:
+            self.metrics['layer_adaptation_stats'] = {
+                'active_layers': len(layer_stats),
+                'total_adaptation_norm': sum(stats['total_norm'] for stats in layer_stats.values()),
+                'adaptation_distribution': {k: v['total_norm'] for k, v in layer_stats.items()}
+            }
+    
+    def end_training(self, wer: float = 0, cer: float = 0, final_loss: float = 0, 
+                    convergence_step: int = 0):
+        """End timing and save comprehensive metrics including efficiency analysis."""
         if self.start_time:
-            self.metrics['training_time_seconds'] = time.time() - self.start_time
+            training_time = time.time() - self.start_time
+            self.metrics['training_time_seconds'] = training_time
             self.metrics['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S')
         
         # Update final metrics
         self.metrics.update({
             'wer': wer,
             'cer': cer, 
-            'final_loss': final_loss
+            'final_loss': final_loss,
+            'convergence_step': convergence_step
         })
         
-        # Save in original repository format and location
+        # Calculate efficiency metrics
+        self._calculate_efficiency_metrics()
+        
+        # Save standard results file (original format)
         results_file = self.results_dir / self.results_filename
         with open(results_file, 'w') as f:
             json.dump(self.metrics, f, indent=2)
         
-        # Also save timing file like original repository
+        # Save detailed metrics file
+        detailed_metrics = {
+            'experiment_metadata': self.metrics,
+            'step_by_step_metrics': self.step_metrics,
+            'layer_adaptation_history': self.layer_metrics,
+            'gradient_evolution': self.gradient_history,
+            'training_summary': self._generate_training_summary()
+        }
+        
+        detailed_file = self.detailed_dir / self.detailed_filename
+        with open(detailed_file, 'w') as f:
+            json.dump(detailed_metrics, f, indent=2)
+        
+        # Save timing file like original repository
         timing_file = self.results_dir / f"training_time_{self.dialect}_{self.model_type}_{self.seed}.txt"
         with open(timing_file, 'w') as f:
-            f.write(f"Total training time: {self.metrics['training_time_seconds']:.2f} seconds or {self.metrics['training_time_seconds']/3600:.2f} hours")
+            f.write(f"Total training time: {self.metrics['training_time_seconds']:.2f} seconds "
+                   f"or {self.metrics['training_time_seconds']/3600:.2f} hours\n")
+            f.write(f"Peak memory usage: {self.metrics['peak_memory_mb']:.2f} MB\n")
+            f.write(f"Training efficiency score: {self.metrics.get('training_efficiency_score', 0):.4f}\n")
+        
+        # Generate efficiency report
+        self._save_efficiency_report()
         
         logger.info(f"Results saved to: {results_file}")
+        logger.info(f"Detailed metrics saved to: {detailed_file}")
         logger.info(f"Timing saved to: {timing_file}")
         return self.metrics
-        logger.info(f"Detailed metrics saved to: {detailed_metrics_file}")
-        return self.metrics
+    
+    def _calculate_efficiency_metrics(self):
+        """Calculate various efficiency metrics for LORA analysis."""
+        # Memory efficiency (performance per MB of memory)
+        if self.metrics['peak_memory_mb'] > 0:
+            self.metrics['memory_efficiency_ratio'] = (100 - self.metrics['wer']) / self.metrics['peak_memory_mb']
+        
+        # Parameter efficiency (performance per trainable parameter)
+        if self.metrics['trainable_params'] > 0:
+            self.metrics['performance_per_param'] = (100 - self.metrics['wer']) / (self.metrics['trainable_params'] / 1e6)
+        
+        # Training efficiency (performance per training time)
+        if self.metrics['training_time_seconds'] > 0:
+            time_hours = self.metrics['training_time_seconds'] / 3600
+            self.metrics['training_efficiency_score'] = (100 - self.metrics['wer']) / time_hours
+        
+        # LORA-specific efficiency metrics
+        if self.model_type == 'peft':
+            # Adaptation magnitude relative to base model
+            if self.metrics.get('adapter_weights_norm', 0) > 0:
+                self.metrics['adaptation_magnitude'] = (
+                    self.metrics['adapter_weights_norm'] / self.metrics['base_model_frozen_params']
+                ) * 1e6  # Scale for readability
+    
+    def _generate_training_summary(self):
+        """Generate a comprehensive training summary."""
+        summary = {
+            'experiment_type': f"{self.model_type.upper()} training on {self.dialect} dialect",
+            'model_efficiency': {
+                'trainable_params_percentage': self.metrics['trainable_percentage'],
+                'memory_efficiency': self.metrics.get('memory_efficiency_ratio', 0),
+                'parameter_efficiency': self.metrics.get('performance_per_param', 0)
+            },
+            'training_dynamics': {
+                'total_steps': len(self.step_metrics),
+                'convergence_analysis': self._analyze_convergence(),
+                'gradient_stability': self._analyze_gradient_stability()
+            },
+            'performance_metrics': {
+                'final_wer': self.metrics['wer'],
+                'final_cer': self.metrics['cer'],
+                'loss_reduction': self._calculate_loss_reduction()
+            }
+        }
+        
+        if self.model_type == 'peft':
+            summary['lora_analysis'] = {
+                'effective_rank': self.metrics.get('effective_rank', 0),
+                'adaptation_strength': self.metrics.get('adaptation_magnitude', 0),
+                'layer_utilization': self._analyze_layer_utilization()
+            }
+        
+        return summary
+    
+    def _analyze_convergence(self):
+        """Analyze convergence patterns from step metrics."""
+        if len(self.step_metrics) < 10:
+            return {'status': 'insufficient_data'}
+        
+        losses = [step['loss'] for step in self.step_metrics]
+        
+        # Simple convergence detection
+        recent_losses = losses[-10:]
+        early_losses = losses[:10]
+        
+        improvement = np.mean(early_losses) - np.mean(recent_losses)
+        stability = np.std(recent_losses)
+        
+        return {
+            'loss_improvement': improvement,
+            'recent_stability': stability,
+            'converged': stability < 0.01 and improvement > 0.1
+        }
+    
+    def _analyze_gradient_stability(self):
+        """Analyze gradient norm stability."""
+        if len(self.gradient_history) < 10:
+            return {'status': 'insufficient_data'}
+        
+        grads = np.array(self.gradient_history)
+        return {
+            'mean_gradient_norm': np.mean(grads),
+            'gradient_variance': np.var(grads),
+            'gradient_trend': np.polyfit(range(len(grads)), grads, 1)[0],  # Slope
+            'exploding_gradients': np.any(grads > 10.0),
+            'vanishing_gradients': np.any(grads < 1e-6)
+        }
+    
+    def _calculate_loss_reduction(self):
+        """Calculate total loss reduction during training."""
+        if len(self.step_metrics) < 2:
+            return 0
+        
+        initial_loss = self.step_metrics[0]['loss']
+        final_loss = self.step_metrics[-1]['loss']
+        return initial_loss - final_loss
+    
+    def _analyze_layer_utilization(self):
+        """Analyze which layers are being utilized most in LORA training."""
+        if not self.layer_metrics:
+            return {}
+        
+        # Get final layer statistics
+        final_step = max(self.layer_metrics.keys())
+        final_stats = self.layer_metrics[final_step]
+        
+        total_norm = sum(stats['total_norm'] for stats in final_stats.values())
+        
+        utilization = {}
+        for layer, stats in final_stats.items():
+            utilization[layer] = stats['total_norm'] / total_norm if total_norm > 0 else 0
+        
+        return utilization
+    
+    def _save_efficiency_report(self):
+        """Save a human-readable efficiency report."""
+        report_file = self.detailed_dir / f"efficiency_report_{self.dialect}_{self.model_type}_{self.seed}.txt"
+        
+        with open(report_file, 'w') as f:
+            f.write(f"EFFICIENCY ANALYSIS REPORT\n")
+            f.write(f"=" * 50 + "\n\n")
+            f.write(f"Experiment: {self.metrics['experiment_name']}\n")
+            f.write(f"Method: {self.model_type.upper()}\n")
+            f.write(f"Dialect: {self.dialect}\n")
+            f.write(f"Seed: {self.seed}\n\n")
+            
+            f.write(f"PERFORMANCE METRICS:\n")
+            f.write(f"- Word Error Rate (WER): {self.metrics['wer']:.2f}%\n")
+            f.write(f"- Character Error Rate (CER): {self.metrics['cer']:.2f}%\n")
+            f.write(f"- Final Loss: {self.metrics['final_loss']:.4f}\n\n")
+            
+            f.write(f"EFFICIENCY METRICS:\n")
+            f.write(f"- Trainable Parameters: {self.metrics['trainable_params']:,} "
+                   f"({self.metrics['trainable_percentage']:.2f}% of total)\n")
+            f.write(f"- Peak Memory Usage: {self.metrics['peak_memory_mb']:.2f} MB\n")
+            f.write(f"- Training Time: {self.metrics['training_time_seconds']:.2f} seconds "
+                   f"({self.metrics['training_time_seconds']/3600:.2f} hours)\n")
+            f.write(f"- Memory Efficiency: {self.metrics.get('memory_efficiency_ratio', 0):.4f} points/MB\n")
+            f.write(f"- Parameter Efficiency: {self.metrics.get('performance_per_param', 0):.4f} points/M-params\n")
+            f.write(f"- Training Efficiency: {self.metrics.get('training_efficiency_score', 0):.4f} points/hour\n\n")
+            
+            if self.model_type == 'peft':
+                f.write(f"LORA-SPECIFIC METRICS:\n")
+                f.write(f"- LoRA Rank: {self.metrics.get('lora_rank', 0)}\n")
+                f.write(f"- LoRA Alpha: {self.metrics.get('lora_alpha', 0)}\n")
+                f.write(f"- LoRA Dropout: {self.metrics.get('lora_dropout', 0):.3f}\n")
+                f.write(f"- Target Modules: {self.metrics.get('target_modules_count', 0)}\n")
+                f.write(f"- Effective Rank: {self.metrics.get('effective_rank', 0):.2f}\n")
+                f.write(f"- Adaptation Magnitude: {self.metrics.get('adaptation_magnitude', 0):.6f}\n")
+        
+        logger.info(f"Efficiency report saved to: {report_file}")
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -259,6 +581,213 @@ class SavePeftModelCallback(TrainerCallback):
         if os.path.exists(pytorch_model_path):
             os.remove(pytorch_model_path)
         return control
+
+
+class EnhancedMetricsCallback(TrainerCallback):
+    """Advanced callback for comprehensive LORA training monitoring."""
+    
+    def __init__(self, metrics_tracker: MetricsTracker, log_every_n_steps: int = 50):
+        self.metrics_tracker = metrics_tracker
+        self.log_every_n_steps = log_every_n_steps
+        self.step_count = 0
+        
+    def on_log(self, args, state, control, model=None, logs=None, **kwargs):
+        """Enhanced logging with detailed metrics collection."""
+        if logs is None:
+            return
+            
+        self.step_count += 1
+        current_step = state.global_step
+        
+        # Extract standard metrics
+        loss = logs.get('train_loss', logs.get('loss', 0))
+        learning_rate = logs.get('learning_rate', 0)
+        
+        # Calculate gradient norm if available
+        gradient_norm = None
+        if hasattr(model, 'parameters'):
+            total_norm = 0
+            param_count = 0
+            for p in model.parameters():
+                if p.grad is not None:
+                    param_norm = p.grad.data.norm(2)
+                    total_norm += param_norm.item() ** 2
+                    param_count += 1
+            if param_count > 0:
+                gradient_norm = total_norm ** (1. / 2)
+        
+        # Update memory tracking
+        self.metrics_tracker.update_memory()
+        memory_usage = self.metrics_tracker.metrics['peak_memory_mb']
+        
+        # Record step metrics
+        self.metrics_tracker.record_step_metrics(
+            step=current_step,
+            loss=loss,
+            learning_rate=learning_rate,
+            gradient_norm=gradient_norm,
+            memory_usage=memory_usage
+        )
+        
+        # Analyze layer adaptation periodically
+        if self.step_count % self.log_every_n_steps == 0:
+            self.metrics_tracker.analyze_layer_adaptation(model, current_step)
+            
+            # Log detailed progress
+            logger.info(f"Step {current_step}: Loss={loss:.4f}, "
+                       f"LR={learning_rate:.2e}, "
+                       f"Grad_norm={gradient_norm:.4f if gradient_norm else 'N/A'}, "
+                       f"Memory={memory_usage:.1f}MB")
+
+
+class LoRAAnalysisCallback(TrainerCallback):
+    """Specialized callback for LoRA adapter analysis during training."""
+    
+    def __init__(self, analysis_frequency: int = 100):
+        self.analysis_frequency = analysis_frequency
+        self.adapter_evolution = []
+        
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        """Analyze LoRA adapter evolution."""
+        if state.global_step % self.analysis_frequency != 0:
+            return
+            
+        if not hasattr(model, 'peft_config'):
+            return
+            
+        # Analyze adapter matrices
+        adapter_analysis = self._analyze_adapters(model, state.global_step)
+        self.adapter_evolution.append(adapter_analysis)
+        
+    def _analyze_adapters(self, model, step):
+        """Comprehensive analysis of LoRA adapter matrices."""
+        analysis = {
+            'step': step,
+            'adapters': {},
+            'global_stats': {
+                'total_adapter_norm': 0,
+                'max_singular_value': 0,
+                'min_singular_value': float('inf'),
+                'rank_utilization': []
+            }
+        }
+        
+        total_norm = 0
+        for name, module in model.named_modules():
+            if hasattr(module, 'lora_A') and hasattr(module, 'lora_B'):
+                # Get adapter matrices
+                lora_A = module.lora_A.default.weight.data
+                lora_B = module.lora_B.default.weight.data
+                
+                # Calculate combined matrix
+                combined = torch.mm(lora_B, lora_A)
+                
+                # Singular value decomposition
+                try:
+                    U, S, V = torch.linalg.svd(combined)
+                    singular_values = S.cpu().numpy()
+                    
+                    # Calculate statistics
+                    adapter_norm = torch.norm(combined).item()
+                    total_norm += adapter_norm
+                    
+                    rank_threshold = 0.01 * singular_values[0] if len(singular_values) > 0 else 0
+                    effective_rank = np.sum(singular_values > rank_threshold)
+                    
+                    analysis['adapters'][name] = {
+                        'norm': adapter_norm,
+                        'singular_values': singular_values.tolist()[:10],  # Top 10
+                        'effective_rank': int(effective_rank),
+                        'condition_number': float(singular_values[0] / singular_values[-1]) if len(singular_values) > 1 else 1.0
+                    }
+                    
+                    # Update global stats
+                    analysis['global_stats']['max_singular_value'] = max(
+                        analysis['global_stats']['max_singular_value'], 
+                        float(singular_values[0])
+                    )
+                    analysis['global_stats']['min_singular_value'] = min(
+                        analysis['global_stats']['min_singular_value'],
+                        float(singular_values[-1]) if len(singular_values) > 0 else float('inf')
+                    )
+                    analysis['global_stats']['rank_utilization'].append(effective_rank)
+                    
+                except Exception as e:
+                    logger.warning(f"SVD analysis failed for {name}: {e}")
+        
+        analysis['global_stats']['total_adapter_norm'] = total_norm
+        analysis['global_stats']['avg_rank_utilization'] = np.mean(analysis['global_stats']['rank_utilization']) if analysis['global_stats']['rank_utilization'] else 0
+        
+        return analysis
+    
+    def get_evolution_summary(self):
+        """Get summary of adapter evolution throughout training."""
+        if not self.adapter_evolution:
+            return {}
+            
+        steps = [data['step'] for data in self.adapter_evolution]
+        total_norms = [data['global_stats']['total_adapter_norm'] for data in self.adapter_evolution]
+        rank_utilizations = [data['global_stats']['avg_rank_utilization'] for data in self.adapter_evolution]
+        
+        return {
+            'training_steps': steps,
+            'adapter_norm_evolution': total_norms,
+            'rank_utilization_evolution': rank_utilizations,
+            'final_adapter_count': len(self.adapter_evolution[-1]['adapters']) if self.adapter_evolution else 0,
+            'convergence_analysis': self._analyze_convergence(total_norms)
+        }
+    
+    def _analyze_convergence(self, values):
+        """Analyze convergence of adapter norms."""
+        if len(values) < 10:
+            return {'status': 'insufficient_data'}
+            
+        # Simple trend analysis
+        recent_values = values[-10:]
+        early_values = values[:10]
+        
+        recent_trend = np.polyfit(range(len(recent_values)), recent_values, 1)[0]
+        overall_change = values[-1] - values[0]
+        
+        return {
+            'overall_change': overall_change,
+            'recent_trend': recent_trend,
+            'is_converging': abs(recent_trend) < 0.01,
+            'final_value': values[-1]
+        }
+
+
+class AttentionAnalysisCallback(TrainerCallback):
+    """Callback to analyze attention patterns during LoRA training."""
+    
+    def __init__(self, analysis_frequency: int = 200):
+        self.analysis_frequency = analysis_frequency
+        self.attention_stats = []
+        
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        """Analyze attention pattern changes."""
+        if state.global_step % self.analysis_frequency != 0:
+            return
+            
+        # This is a placeholder for attention analysis
+        # In practice, you'd need to hook into the model's attention layers
+        # and collect attention weights during a forward pass
+        
+        attention_analysis = self._analyze_attention_patterns(model, state.global_step)
+        if attention_analysis:
+            self.attention_stats.append(attention_analysis)
+    
+    def _analyze_attention_patterns(self, model, step):
+        """Analyze attention patterns (placeholder implementation)."""
+        # This would require more complex implementation to hook into
+        # the model's attention mechanisms during inference
+        
+        return {
+            'step': step,
+            'attention_entropy': 0,  # Placeholder
+            'attention_sparsity': 0,  # Placeholder
+            'head_utilization': {},  # Placeholder
+        }
 
 
 # =============================================================================
