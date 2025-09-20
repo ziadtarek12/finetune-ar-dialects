@@ -875,7 +875,7 @@ class ArabicDialectPEFTTrainer:
 
         # Push to Hub if requested
         if self.push_to_hub and self.hub_model_id:
-            logger.info(f"Pushing model to Hugging Face Hub: {hub_model_id}")
+            logger.info(f"Pushing model to Hugging Face Hub: {self.hub_model_id}")
             try:
                 # Save processor configuration
                 processor.save_pretrained(str(final_model_path))
