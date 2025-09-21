@@ -1,0 +1,66 @@
+{
+  "experiment_metadata": {
+    "experiment_name": "whisper-small-peft_egyptian_seed84",
+    "model_name": "whisper-small",
+    "dialect": "egyptian",
+    "method": "peft",
+    "seed": 84,
+    "start_time": "2025-09-21 19:23:41",
+    "end_time": "2025-09-21 22:47:26",
+    "training_time_seconds": 12224.337259531021,
+    "peak_memory_mb": 1291.39208984375,
+    "total_params": 245273856,
+    "trainable_params": 3538944,
+    "trainable_percentage": 1.442854145857274,
+    "wer": 73.72884109295299,
+    "cer": 44.69201834518439,
+    "final_loss": 1.2989210459391276,
+    "lora_config": {},
+    "parameter_efficiency_ratio": 0,
+    "memory_efficiency_ratio": 0.020343286220860814,
+    "training_efficiency_score": 7.736711615317262,
+    "convergence_step": 0,
+    "gradient_norm_stats": {},
+    "layer_adaptation_stats": {},
+    "performance_per_param": 7.423445781297192,
+    "lora_rank": 0,
+    "lora_alpha": 0,
+    "lora_dropout": 0,
+    "target_modules_count": 0,
+    "adapter_weights_norm": 0,
+    "base_model_frozen_params": 0,
+    "effective_rank": 0,
+    "adaptation_magnitude": 0,
+    "model_type": "PEFT_LoRA"
+  },
+  "step_by_step_metrics": [],
+  "layer_adaptation_history": {},
+  "gradient_evolution": [],
+  "training_summary": {
+    "experiment_type": "PEFT training on egyptian dialect",
+    "model_efficiency": {
+      "trainable_params_percentage": 1.442854145857274,
+      "memory_efficiency": 0.020343286220860814,
+      "parameter_efficiency": 7.423445781297192
+    },
+    "training_dynamics": {
+      "total_steps": 0,
+      "convergence_analysis": {
+        "status": "insufficient_data"
+      },
+      "gradient_stability": {
+        "status": "insufficient_data"
+      }
+    },
+    "performance_metrics": {
+      "final_wer": 73.72884109295299,
+      "final_cer": 44.69201834518439,
+      "loss_reduction": 0
+    },
+    "lora_analysis": {
+      "effective_rank": 0,
+      "adaptation_strength": 0,
+      "layer_utilization": {}
+    }
+  }
+}
