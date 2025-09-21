@@ -90,7 +90,7 @@ PEFT_CONFIG = {
         'lora_dropout': 0.05,  # Changed from 0.1 to match notebook
         'target_modules': ["q_proj", "v_proj"],  # Simplified to match notebook exactly
         'learning_rate': 1e-3,
-        'batch_size': 16
+        'batch_size': 8
     },
     'medium': {
         'lora_rank': 32,
