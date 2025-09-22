@@ -729,6 +729,16 @@ class EvaluationManager:
 # =============================================================================
 
 class ArabicDialectPEFTTrainer:
+    def get_eval_dataset(self, processor=None):
+        """Load and cache the evaluation dataset, optionally with a specific processor."""
+        if hasattr(self, '_eval_dataset') and self._eval_dataset is not None:
+            return self._eval_dataset
+        proc = processor if processor is not None else (self.evaluation_manager.processor if hasattr(self, 'evaluation_manager') and self.evaluation_manager else None)
+        if proc is None:
+            raise ValueError("No processor available to load evaluation dataset.")
+        self._eval_dataset = self.dataset_manager.load_datasets(proc)
+        return self._eval_dataset
+
     """
     Main trainer class for Arabic dialect PEFT fine-tuning.
     
@@ -954,10 +964,13 @@ class ArabicDialectPEFTTrainer:
         
         return trainer
     
-    def evaluate_model(self, model_path: str = None):
-        """Evaluate the trained model using the evaluation manager."""
+    def evaluate_model(self, model_path: str = None, dataset: Any = None):
+        """
+        Evaluate the trained model using the evaluation manager.
+        Advanced: Accept a preloaded dataset to avoid redundant loading.
+        """
+        # If a new model_path is provided, load model and processor
         if model_path:
-            # Load model from path for evaluation
             peft_config = PeftConfig.from_pretrained(model_path)
             base_model = WhisperForConditionalGeneration.from_pretrained(
                 peft_config.base_model_name_or_path,
@@ -970,21 +983,22 @@ class ArabicDialectPEFTTrainer:
                 language="ar",
                 task="transcribe"
             )
-            
-            # Prepare model for evaluation
             model.eval()
             model.config.use_cache = True
-            
-            # Create evaluation manager with loaded model
             self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
-        
+            # Always reload eval dataset with new processor if model_path is given
+            eval_dataset = self.get_eval_dataset(processor)
         elif self.evaluation_manager is None:
             raise ValueError("No evaluation manager available. Provide model_path or train first.")
-        
-        # Load dataset for evaluation
-        dataset = self.dataset_manager.load_datasets(self.evaluation_manager.processor)
-        
-        return self.evaluation_manager.evaluate_model(dataset, model_path)
+        else:
+            # Use provided dataset, or cached, or load
+            if dataset is not None:
+                eval_dataset = dataset
+                self._eval_dataset = dataset  # cache for future
+            else:
+                eval_dataset = self.get_eval_dataset()
+
+        return self.evaluation_manager.evaluate_model(eval_dataset, model_path)
 
 
 # =============================================================================
@@ -1111,7 +1125,9 @@ Examples:
     # Evaluation-only mode
     if args.evaluate_only:
         print(f"🔍 Evaluation-only mode for model: {args.evaluate_only}")
-        results = trainer.evaluate_model(args.evaluate_only)
+        # Advanced: load dataset once and pass to evaluate_model
+        eval_dataset = trainer.get_eval_dataset()
+        results = trainer.evaluate_model(args.evaluate_only, dataset=eval_dataset)
         print("\n📊 Evaluation Results:")
         print("=" * 30)
         for metric, value in results.items():
@@ -1175,8 +1191,9 @@ def interactive_evaluation():
     )
     
     try:
-        results = trainer.evaluate_model(model_path)
-        
+        # Advanced: load dataset once and pass to evaluate_model
+        eval_dataset = trainer.get_eval_dataset()
+        results = trainer.evaluate_model(model_path, dataset=eval_dataset)
         print("\n" + "="*50)
         print("EVALUATION RESULTS")
         print("="*50)
@@ -1186,7 +1203,6 @@ def interactive_evaluation():
             else:
                 print(f"{metric:20s}: {value}")
         print("="*50)
-        
     except Exception as e:
         print(f"Evaluation failed: {e}")
         logger.error(f"Evaluation error: {e}")
