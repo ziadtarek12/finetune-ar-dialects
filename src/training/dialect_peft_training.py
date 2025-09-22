@@ -1059,7 +1059,7 @@ Examples:
     # Execution modes
     parser.add_argument("--quick_test", action="store_true",
                        help="Run minimal training for testing")
-    parser.add_argument("--evaluate_only", type=str,
+    parser.add_argument("--evaluate_only", action="store_true",
                        help="Path to trained model for evaluation only")
     
     # Hugging Face Hub arguments
