@@ -559,14 +559,14 @@ class EvaluationManager:
         
         # Optimized dataloader for faster evaluation - larger batch size and more workers
         data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
-        eval_batch_size =  128 # Increased from 8 for better GPU utilization
+        eval_batch_size =  16 # Increased from 8 for better GPU utilization
         eval_dataloader = DataLoader(
             dataset["test"], 
             batch_size=eval_batch_size, 
             collate_fn=data_collator,
-            num_workers=4,  # Parallel data loading
+            num_workers=2,  # Parallel data loading
             pin_memory=True,  # Faster GPU transfer
-            persistent_workers=True  # Keep workers alive between batches
+            persistent_workers=False  # Keep workers alive between batches
         )
         
         # Setup generation parameters
