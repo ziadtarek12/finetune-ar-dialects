@@ -1125,9 +1125,28 @@ Examples:
     # Evaluation-only mode
     if args.evaluate_only:
         print(f"🔍 Evaluation-only mode for model: {args.evaluate_only}")
-        # Advanced: load dataset once and pass to evaluate_model
-        eval_dataset = trainer.get_eval_dataset()
-        results = trainer.evaluate_model(args.evaluate_only, dataset=eval_dataset)
+        # Load model and processor first
+        from peft import PeftConfig, PeftModel
+        from transformers import WhisperForConditionalGeneration, WhisperProcessor
+        model_path = args.evaluate_only
+        peft_config = PeftConfig.from_pretrained(model_path)
+        base_model = WhisperForConditionalGeneration.from_pretrained(
+            peft_config.base_model_name_or_path,
+            load_in_8bit=True,
+            device_map="auto"
+        )
+        model = PeftModel.from_pretrained(base_model, model_path)
+        processor = WhisperProcessor.from_pretrained(
+            peft_config.base_model_name_or_path,
+            language="ar",
+            task="transcribe"
+        )
+        model.eval()
+        model.config.use_cache = True
+        trainer.evaluation_manager = EvaluationManager(model, processor, args.dialect, args.output_dir)
+        # Now load dataset with processor
+        eval_dataset = trainer.get_eval_dataset(processor)
+        results = trainer.evaluate_model(model_path, dataset=eval_dataset)
         print("\n📊 Evaluation Results:")
         print("=" * 30)
         for metric, value in results.items():
