@@ -564,7 +564,7 @@ class EvaluationManager:
             dataset["test"], 
             batch_size=eval_batch_size, 
             collate_fn=data_collator,
-            num_workers=2,  # Parallel data loading
+            num_workers=4,  # Parallel data loading
             pin_memory=True,  # Faster GPU transfer
             persistent_workers=True  # Keep workers alive between batches
         )
