@@ -1,0 +1,28 @@
+EFFICIENCY ANALYSIS REPORT
+==================================================
+
+Experiment: whisper-small-peft_msa_seed42
+Method: PEFT
+Dialect: msa
+Seed: 42
+
+PERFORMANCE METRICS:
+- Word Error Rate (WER): 50.27%
+- Character Error Rate (CER): 21.78%
+- Final Loss: 0.4397
+
+EFFICIENCY METRICS:
+- Trainable Parameters: 3,538,944 (1.44% of total)
+- Peak Memory Usage: 1289.77 MB
+- Training Time: 16207.15 seconds (4.50 hours)
+- Memory Efficiency: 0.0386 points/MB
+- Parameter Efficiency: 14.0516 points/M-params
+- Training Efficiency: 11.0458 points/hour
+
+LORA-SPECIFIC METRICS:
+- LoRA Rank: 0
+- LoRA Alpha: 0
+- LoRA Dropout: 0.000
+- Target Modules: 0
+- Effective Rank: 0.00
+- Adaptation Magnitude: 0.000000

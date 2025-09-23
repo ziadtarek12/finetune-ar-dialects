@@ -1,0 +1,66 @@
+{
+  "experiment_metadata": {
+    "experiment_name": "whisper-small-peft_msa_seed42",
+    "model_name": "whisper-small",
+    "dialect": "msa",
+    "method": "peft",
+    "seed": 42,
+    "start_time": "2025-09-23 00:13:20",
+    "end_time": "2025-09-23 04:43:28",
+    "training_time_seconds": 16207.154197692871,
+    "peak_memory_mb": 1289.77294921875,
+    "total_params": 245273856,
+    "trainable_params": 3538944,
+    "trainable_percentage": 1.442854145857274,
+    "wer": 50.27201882076165,
+    "cer": 21.777312947191927,
+    "final_loss": 0.43966970801353455,
+    "lora_config": {},
+    "parameter_efficiency_ratio": 0,
+    "memory_efficiency_ratio": 0.03855560872893164,
+    "training_efficiency_score": 11.045784476508658,
+    "convergence_step": 0,
+    "gradient_norm_stats": {},
+    "layer_adaptation_stats": {},
+    "performance_per_param": 14.051643987369777,
+    "lora_rank": 0,
+    "lora_alpha": 0,
+    "lora_dropout": 0,
+    "target_modules_count": 0,
+    "adapter_weights_norm": 0,
+    "base_model_frozen_params": 0,
+    "effective_rank": 0,
+    "adaptation_magnitude": 0,
+    "model_type": "PEFT_LoRA"
+  },
+  "step_by_step_metrics": [],
+  "layer_adaptation_history": {},
+  "gradient_evolution": [],
+  "training_summary": {
+    "experiment_type": "PEFT training on msa dialect",
+    "model_efficiency": {
+      "trainable_params_percentage": 1.442854145857274,
+      "memory_efficiency": 0.03855560872893164,
+      "parameter_efficiency": 14.051643987369777
+    },
+    "training_dynamics": {
+      "total_steps": 0,
+      "convergence_analysis": {
+        "status": "insufficient_data"
+      },
+      "gradient_stability": {
+        "status": "insufficient_data"
+      }
+    },
+    "performance_metrics": {
+      "final_wer": 50.27201882076165,
+      "final_cer": 21.777312947191927,
+      "loss_reduction": 0
+    },
+    "lora_analysis": {
+      "effective_rank": 0,
+      "adaptation_strength": 0,
+      "layer_utilization": {}
+    }
+  }
+}
