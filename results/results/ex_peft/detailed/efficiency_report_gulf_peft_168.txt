@@ -1,0 +1,28 @@
+EFFICIENCY ANALYSIS REPORT
+==================================================
+
+Experiment: whisper-small-peft_gulf_seed168
+Method: PEFT
+Dialect: gulf
+Seed: 168
+
+PERFORMANCE METRICS:
+- Word Error Rate (WER): 82.50%
+- Character Error Rate (CER): 65.38%
+- Final Loss: 1.4306
+
+EFFICIENCY METRICS:
+- Trainable Parameters: 3,538,944 (1.44% of total)
+- Peak Memory Usage: 1294.23 MB
+- Training Time: 16450.90 seconds (4.57 hours)
+- Memory Efficiency: 0.0135 points/MB
+- Parameter Efficiency: 4.9445 points/M-params
+- Training Efficiency: 3.8292 points/hour
+
+LORA-SPECIFIC METRICS:
+- LoRA Rank: 0
+- LoRA Alpha: 0
+- LoRA Dropout: 0.000
+- Target Modules: 0
+- Effective Rank: 0.00
+- Adaptation Magnitude: 0.000000
