@@ -1,0 +1,66 @@
+{
+  "experiment_metadata": {
+    "experiment_name": "whisper-small-peft_gulf_seed84",
+    "model_name": "whisper-small",
+    "dialect": "gulf",
+    "method": "peft",
+    "seed": 84,
+    "start_time": "2025-09-24 10:29:52",
+    "end_time": "2025-09-24 15:02:38",
+    "training_time_seconds": 16366.244519233704,
+    "peak_memory_mb": 1293.99951171875,
+    "total_params": 245273856,
+    "trainable_params": 3538944,
+    "trainable_percentage": 1.442854145857274,
+    "wer": 85.28662224815008,
+    "cer": 64.83830623548329,
+    "final_loss": 1.4272533864974977,
+    "lora_config": {},
+    "parameter_efficiency_ratio": 0,
+    "memory_efficiency_ratio": 0.011370466231712043,
+    "training_efficiency_score": 3.2364272600480355,
+    "convergence_step": 0,
+    "gradient_norm_stats": {},
+    "layer_adaptation_stats": {},
+    "performance_per_param": 4.157561620599229,
+    "lora_rank": 0,
+    "lora_alpha": 0,
+    "lora_dropout": 0,
+    "target_modules_count": 0,
+    "adapter_weights_norm": 0,
+    "base_model_frozen_params": 0,
+    "effective_rank": 0,
+    "adaptation_magnitude": 0,
+    "model_type": "PEFT_LoRA"
+  },
+  "step_by_step_metrics": [],
+  "layer_adaptation_history": {},
+  "gradient_evolution": [],
+  "training_summary": {
+    "experiment_type": "PEFT training on gulf dialect",
+    "model_efficiency": {
+      "trainable_params_percentage": 1.442854145857274,
+      "memory_efficiency": 0.011370466231712043,
+      "parameter_efficiency": 4.157561620599229
+    },
+    "training_dynamics": {
+      "total_steps": 0,
+      "convergence_analysis": {
+        "status": "insufficient_data"
+      },
+      "gradient_stability": {
+        "status": "insufficient_data"
+      }
+    },
+    "performance_metrics": {
+      "final_wer": 85.28662224815008,
+      "final_cer": 64.83830623548329,
+      "loss_reduction": 0
+    },
+    "lora_analysis": {
+      "effective_rank": 0,
+      "adaptation_strength": 0,
+      "layer_utilization": {}
+    }
+  }
+}
