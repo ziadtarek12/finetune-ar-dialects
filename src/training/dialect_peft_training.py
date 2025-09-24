@@ -802,43 +802,67 @@ class DatasetManager:
         self.use_huggingface = use_huggingface
         self.quick_test = quick_test
     
-    def load_datasets(self, processor: WhisperProcessor) -> DatasetDict:
-        """Load and prepare dialect datasets with HuggingFace support."""
-        logger.info(f"Loading {self.dialect} dialect data...")
-        
+    def load_datasets(self, processor: WhisperProcessor, seed: int = 42, test_size: float = 0.2) -> DatasetDict:
+        """Load full dataset and perform random train/test split with seed."""
+        logger.info(f"Loading {self.dialect} dialect data for random split...")
         try:
             if self.use_huggingface:
-                dataset = self._load_huggingface_dataset()
-                logger.info("Successfully loaded data from HuggingFace")
-                
-                # Apply quick test filtering
-                if self.quick_test:
-                    logger.info("Applying quick test data filtering (50 train, 10 test samples)")
-                    dataset["train"] = dataset["train"].select(range(min(50, len(dataset["train"]))))
-                    dataset["test"] = dataset["test"].select(range(min(10, len(dataset["test"]))))
-                
-                # Clean columns
-                dataset = self._clean_dataset_columns(dataset)
-                return dataset
-                
+                dataset = self._load_full_huggingface_dataset()
+                logger.info("Successfully loaded full data from HuggingFace")
             else:
-                dataset = self._load_local_dataset()
-                logger.info("Successfully loaded local data")
-                
-                # Apply quick test filtering
-                if self.quick_test:
-                    logger.info("Applying quick test data filtering (50 train, 10 test samples)")
-                    dataset["train"] = dataset["train"].select(range(min(50, len(dataset["train"]))))
-                    dataset["test"] = dataset["test"].select(range(min(10, len(dataset["test"]))))
-                
-                # Process local datasets
-                dataset = self._preprocess_local_dataset(dataset, processor)
-                return dataset
-                
+                dataset = self._load_full_local_dataset()
+                logger.info("Successfully loaded full local data")
+
+            # Perform random train/test split
+            split_dataset = dataset.train_test_split(test_size=test_size, seed=seed)
+
+            # Apply quick test filtering
+            if self.quick_test:
+                logger.info("Applying quick test data filtering (50 train, 10 test samples)")
+                split_dataset["train"] = split_dataset["train"].select(range(min(50, len(split_dataset["train"]))))
+                split_dataset["test"] = split_dataset["test"].select(range(min(10, len(split_dataset["test"]))))
+
+            # Clean columns
+            split_dataset = self._clean_dataset_columns(split_dataset)
+            return split_dataset
         except Exception as e:
             logger.warning(f"Failed to load primary data source: {e}")
             logger.info("Falling back to placeholder dataset")
             return self._load_placeholder_dataset(processor)
+    def _load_full_huggingface_dataset(self):
+        """Load the full dataset from HuggingFace (not pre-split)."""
+        if self.dialect == "all":
+            logger.info("Loading all dialects for full dataset from HuggingFace...")
+            combined = []
+            for dialect_name, dataset_prefix in HUGGINGFACE_DATASET_MAPPING.items():
+                if dialect_name == 'msa':
+                    continue
+                logger.info(f"Loading {dialect_name} data...")
+                full_dataset = load_dataset(f"{dataset_prefix}_train_set")
+                combined.append(full_dataset['train'])
+            return concatenate_datasets(combined)
+        else:
+            if self.dialect not in HUGGINGFACE_DATASET_MAPPING:
+                raise ValueError(f"Dialect '{self.dialect}' not found in HuggingFace collection")
+            dataset_prefix = HUGGINGFACE_DATASET_MAPPING[self.dialect]
+            logger.info(f"Loading {self.dialect} full data from {dataset_prefix}...")
+            full_dataset = load_dataset(f"{dataset_prefix}_train_set")
+            return full_dataset['train']
+
+    def _load_full_local_dataset(self):
+        """Load the full dataset from local disk (not pre-split)."""
+        from datasets import load_from_disk
+        root = os.environ.get("DATA_ROOT", "./data")
+        if self.dialect == "all":
+            logger.info("Loading all dialects for full dataset from local disk...")
+            dialect_dataset = load_from_disk(os.path.join(root, "egyptian_train/"))
+            for d in ["gulf", "iraqi", "levantine", "maghrebi"]:
+                train_d = load_from_disk(os.path.join(root, f"{d}_train/"))
+                dialect_dataset = concatenate_datasets([train_d, dialect_dataset])
+            return dialect_dataset
+        else:
+            logger.info(f"Loading {self.dialect} full data from local disk...")
+            return load_from_disk(os.path.join(root, f"{self.dialect}_train/"))
     
     def _load_huggingface_dataset(self) -> DatasetDict:
         """Load datasets from the official HuggingFace collection."""
