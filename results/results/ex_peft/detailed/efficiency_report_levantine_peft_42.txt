@@ -7,17 +7,17 @@ Dialect: levantine
 Seed: 42
 
 PERFORMANCE METRICS:
-- Word Error Rate (WER): 75.35%
-- Character Error Rate (CER): 50.69%
-- Final Loss: 1.4015
+- Word Error Rate (WER): 79.18%
+- Character Error Rate (CER): 52.43%
+- Final Loss: 2.5974
 
 EFFICIENCY METRICS:
 - Trainable Parameters: 3,538,944 (1.44% of total)
-- Peak Memory Usage: 1292.24 MB
-- Training Time: 11084.85 seconds (3.08 hours)
-- Memory Efficiency: 0.0191 points/MB
-- Parameter Efficiency: 6.9654 points/M-params
-- Training Efficiency: 8.0055 points/hour
+- Peak Memory Usage: 1291.74 MB
+- Training Time: 11031.17 seconds (3.06 hours)
+- Memory Efficiency: 0.0161 points/MB
+- Parameter Efficiency: 5.8844 points/M-params
+- Training Efficiency: 6.7960 points/hour
 
 LORA-SPECIFIC METRICS:
 - LoRA Rank: 0

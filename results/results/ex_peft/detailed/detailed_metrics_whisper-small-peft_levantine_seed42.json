@@ -5,24 +5,24 @@
     "dialect": "levantine",
     "method": "peft",
     "seed": 42,
-    "start_time": "2025-09-24 23:13:52",
-    "end_time": "2025-09-25 02:18:37",
-    "training_time_seconds": 11084.85142159462,
-    "peak_memory_mb": 1292.23681640625,
+    "start_time": "2025-09-25 12:57:25",
+    "end_time": "2025-09-25 16:01:16",
+    "training_time_seconds": 11031.171050071716,
+    "peak_memory_mb": 1291.73779296875,
     "total_params": 245273856,
     "trainable_params": 3538944,
     "trainable_percentage": 1.442854145857274,
-    "wer": 75.34992573923219,
-    "cer": 50.68992472003671,
-    "final_loss": 1.4015350176493326,
+    "wer": 79.17548044466449,
+    "cer": 52.42748143490748,
+    "final_loss": 2.5973864250183105,
     "lora_config": {},
     "parameter_efficiency_ratio": 0,
-    "memory_efficiency_ratio": 0.01907550841131459,
-    "training_efficiency_score": 8.005544139805739,
+    "memory_efficiency_ratio": 0.01612132095901239,
+    "training_efficiency_score": 6.79603915657898,
     "convergence_step": 0,
     "gradient_norm_stats": {},
     "layer_adaptation_stats": {},
-    "performance_per_param": 6.965375620741049,
+    "performance_per_param": 5.884387985606868,
     "lora_rank": 0,
     "lora_alpha": 0,
     "lora_dropout": 0,
@@ -40,8 +40,8 @@
     "experiment_type": "PEFT training on levantine dialect",
     "model_efficiency": {
       "trainable_params_percentage": 1.442854145857274,
-      "memory_efficiency": 0.01907550841131459,
-      "parameter_efficiency": 6.965375620741049
+      "memory_efficiency": 0.01612132095901239,
+      "parameter_efficiency": 5.884387985606868
     },
     "training_dynamics": {
       "total_steps": 0,
@@ -53,8 +53,8 @@
       }
     },
     "performance_metrics": {
-      "final_wer": 75.34992573923219,
-      "final_cer": 50.68992472003671,
+      "final_wer": 79.17548044466449,
+      "final_cer": 52.42748143490748,
       "loss_reduction": 0
     },
     "lora_analysis": {
