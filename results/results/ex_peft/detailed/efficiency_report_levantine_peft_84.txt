@@ -1,0 +1,28 @@
+EFFICIENCY ANALYSIS REPORT
+==================================================
+
+Experiment: whisper-small-peft_levantine_seed84
+Method: PEFT
+Dialect: levantine
+Seed: 84
+
+PERFORMANCE METRICS:
+- Word Error Rate (WER): 76.59%
+- Character Error Rate (CER): 51.36%
+- Final Loss: 1.3133
+
+EFFICIENCY METRICS:
+- Trainable Parameters: 3,538,944 (1.44% of total)
+- Peak Memory Usage: 1293.49 MB
+- Training Time: 11274.86 seconds (3.13 hours)
+- Memory Efficiency: 0.0181 points/MB
+- Parameter Efficiency: 6.6144 points/M-params
+- Training Efficiency: 7.4740 points/hour
+
+LORA-SPECIFIC METRICS:
+- LoRA Rank: 0
+- LoRA Alpha: 0
+- LoRA Dropout: 0.000
+- Target Modules: 0
+- Effective Rank: 0.00
+- Adaptation Magnitude: 0.000000
