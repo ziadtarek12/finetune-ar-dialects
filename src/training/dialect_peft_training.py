@@ -1061,11 +1061,12 @@ class ModelManager:
 class EvaluationManager:
     """Handles model evaluation and metrics calculation."""
     
-    def __init__(self, model: Any, processor: WhisperProcessor, dialect: str, output_dir: Path):
+    def __init__(self, model: Any, processor: WhisperProcessor, dialect: str, output_dir: Path, eval_output_filename: str = None):
         self.model = model
         self.processor = processor
         self.dialect = dialect
         self.output_dir = output_dir
+        self.eval_output_filename = eval_output_filename or f"evaluation_results_{self.dialect}.json"
         self.wer_metric = evaluate.load("wer")
         self.cer_metric = evaluate.load("cer")  # Add CER metric
     
@@ -1228,7 +1229,7 @@ class EvaluationManager:
         logger.info(f"  Samples evaluated: {len(predictions)}")
         
         # Save evaluation results
-        eval_results_path = self.output_dir / f"evaluation_results_{self.dialect}.json"
+        eval_results_path = self.output_dir / self.eval_output_filename
         with open(eval_results_path, 'w') as f:
             json.dump(eval_metrics, f, indent=2)
         logger.info(f"Evaluation results saved to {eval_results_path}")
@@ -1277,7 +1278,8 @@ class ArabicDialectPEFTTrainer:
         seed: int = 42,
         push_to_hub=True,
         hub_model_id=None,
-        hub_token=None
+        hub_token=None,
+        eval_output_filename: str = None
     ):
         # Core configuration
         self.model_name = model_name
@@ -1291,6 +1293,7 @@ class ArabicDialectPEFTTrainer:
         self.push_to_hub = push_to_hub
         self.hub_token = hub_token or os.getenv("HUGGINGFACE_HUB_TOKEN", None)
         self.hub_model_id = hub_model_id
+        self.eval_output_filename = eval_output_filename or f"evaluation_results_{self.dialect}.json"
         # Extract model size and get PEFT config
         self.model_size = self._extract_model_size(model_name)
         self.peft_config = PEFT_CONFIG[self.model_size]
@@ -1371,7 +1374,7 @@ class ArabicDialectPEFTTrainer:
         dataset = self.dataset_manager.load_datasets(processor)
         
         # Step 3: Initialize evaluation manager
-        self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
+        self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir, self.eval_output_filename)
         
         # Step 4: Setup training components
         logger.info("Step 3: Setting up training components...")
@@ -1505,7 +1508,7 @@ class ArabicDialectPEFTTrainer:
             model.config.use_cache = True
             
             # Create evaluation manager with loaded model
-            self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir)
+            self.evaluation_manager = EvaluationManager(model, processor, self.dialect, self.output_dir, self.eval_output_filename)
         
         elif self.evaluation_manager is None:
             raise ValueError("No evaluation manager available. Provide model_path or train first.")
@@ -1590,6 +1593,8 @@ Examples:
                        help="Run minimal training for testing")
     parser.add_argument("--evaluate_only", type=str,
                        help="Path to trained model for evaluation only")
+    parser.add_argument("--eval_output_filename", type=str,
+                       help="Custom filename for evaluation results (default: evaluation_results_{dialect}.json)")
     
     # Hugging Face Hub arguments
     parser.add_argument("--push_to_hub", action="store_true",
@@ -1635,6 +1640,7 @@ Examples:
         push_to_hub=args.push_to_hub,
         hub_token=args.hub_token,
         hub_model_id=args.hub_model_id,
+        eval_output_filename=args.eval_output_filename
     )
     
     # Evaluation-only mode
