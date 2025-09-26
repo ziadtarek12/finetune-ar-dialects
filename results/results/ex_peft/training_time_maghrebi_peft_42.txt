@@ -1,0 +1,3 @@
+Total training time: 12936.68 seconds or 3.59 hours
+Peak memory usage: 1292.19 MB
+Training efficiency score: 4.5629
