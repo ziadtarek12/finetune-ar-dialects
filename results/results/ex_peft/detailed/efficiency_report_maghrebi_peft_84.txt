@@ -1,0 +1,28 @@
+EFFICIENCY ANALYSIS REPORT
+==================================================
+
+Experiment: whisper-small-peft_maghrebi_seed84
+Method: PEFT
+Dialect: maghrebi
+Seed: 84
+
+PERFORMANCE METRICS:
+- Word Error Rate (WER): 89.80%
+- Character Error Rate (CER): 58.48%
+- Final Loss: 1.5530
+
+EFFICIENCY METRICS:
+- Trainable Parameters: 3,538,944 (1.44% of total)
+- Peak Memory Usage: 1292.98 MB
+- Training Time: 12729.87 seconds (3.54 hours)
+- Memory Efficiency: 0.0079 points/MB
+- Parameter Efficiency: 2.8823 points/M-params
+- Training Efficiency: 2.8847 points/hour
+
+LORA-SPECIFIC METRICS:
+- LoRA Rank: 0
+- LoRA Alpha: 0
+- LoRA Dropout: 0.000
+- Target Modules: 0
+- Effective Rank: 0.00
+- Adaptation Magnitude: 0.000000
