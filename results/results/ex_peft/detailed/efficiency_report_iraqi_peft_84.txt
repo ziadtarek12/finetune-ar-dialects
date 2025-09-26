@@ -7,17 +7,17 @@ Dialect: iraqi
 Seed: 84
 
 PERFORMANCE METRICS:
-- Word Error Rate (WER): 100.22%
-- Character Error Rate (CER): 89.32%
-- Final Loss: 3.6317
+- Word Error Rate (WER): 77.86%
+- Character Error Rate (CER): 50.25%
+- Final Loss: 1.4378
 
 EFFICIENCY METRICS:
 - Trainable Parameters: 3,538,944 (1.44% of total)
-- Peak Memory Usage: 1289.80 MB
-- Training Time: 11470.55 seconds (3.19 hours)
-- Memory Efficiency: -0.0002 points/MB
-- Parameter Efficiency: -0.0610 points/M-params
-- Training Efficiency: -0.0677 points/hour
+- Peak Memory Usage: 1291.66 MB
+- Training Time: 11504.98 seconds (3.20 hours)
+- Memory Efficiency: 0.0171 points/MB
+- Parameter Efficiency: 6.2562 points/M-params
+- Training Efficiency: 6.9278 points/hour
 
 LORA-SPECIFIC METRICS:
 - LoRA Rank: 0
