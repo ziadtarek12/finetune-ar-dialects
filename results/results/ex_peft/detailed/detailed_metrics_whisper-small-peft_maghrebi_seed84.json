@@ -5,24 +5,24 @@
     "dialect": "maghrebi",
     "method": "peft",
     "seed": 84,
-    "start_time": "2025-09-26 04:54:48",
-    "end_time": "2025-09-26 08:26:58",
-    "training_time_seconds": 12729.868757009506,
-    "peak_memory_mb": 1292.97705078125,
+    "start_time": "2025-09-27 01:39:30",
+    "end_time": "2025-09-27 04:52:44",
+    "training_time_seconds": 11594.375964164734,
+    "peak_memory_mb": 1292.43896484375,
     "total_params": 245273856,
     "trainable_params": 3538944,
     "trainable_percentage": 1.442854145857274,
-    "wer": 89.79958890030832,
-    "cer": 58.48358912268071,
-    "final_loss": 1.5530004577636718,
+    "wer": 83.16204179513532,
+    "cer": 52.769233286429525,
+    "final_loss": 1.5841561673482258,
     "lora_config": {},
     "parameter_efficiency_ratio": 0,
-    "memory_efficiency_ratio": 0.007889089055005521,
-    "training_efficiency_score": 2.8846707424748526,
+    "memory_efficiency_ratio": 0.01302804903201004,
+    "training_efficiency_score": 5.228107983117287,
     "convergence_step": 0,
     "gradient_norm_stats": {},
     "layer_adaptation_stats": {},
-    "performance_per_param": 2.8823318763144257,
+    "performance_per_param": 4.757904675763357,
     "lora_rank": 0,
     "lora_alpha": 0,
     "lora_dropout": 0,
@@ -40,8 +40,8 @@
     "experiment_type": "PEFT training on maghrebi dialect",
     "model_efficiency": {
       "trainable_params_percentage": 1.442854145857274,
-      "memory_efficiency": 0.007889089055005521,
-      "parameter_efficiency": 2.8823318763144257
+      "memory_efficiency": 0.01302804903201004,
+      "parameter_efficiency": 4.757904675763357
     },
     "training_dynamics": {
       "total_steps": 0,
@@ -53,8 +53,8 @@
       }
     },
     "performance_metrics": {
-      "final_wer": 89.79958890030832,
-      "final_cer": 58.48358912268071,
+      "final_wer": 83.16204179513532,
+      "final_cer": 52.769233286429525,
       "loss_reduction": 0
     },
     "lora_analysis": {

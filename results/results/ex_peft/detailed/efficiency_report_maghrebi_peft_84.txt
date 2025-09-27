@@ -7,17 +7,17 @@ Dialect: maghrebi
 Seed: 84
 
 PERFORMANCE METRICS:
-- Word Error Rate (WER): 89.80%
-- Character Error Rate (CER): 58.48%
-- Final Loss: 1.5530
+- Word Error Rate (WER): 83.16%
+- Character Error Rate (CER): 52.77%
+- Final Loss: 1.5842
 
 EFFICIENCY METRICS:
 - Trainable Parameters: 3,538,944 (1.44% of total)
-- Peak Memory Usage: 1292.98 MB
-- Training Time: 12729.87 seconds (3.54 hours)
-- Memory Efficiency: 0.0079 points/MB
-- Parameter Efficiency: 2.8823 points/M-params
-- Training Efficiency: 2.8847 points/hour
+- Peak Memory Usage: 1292.44 MB
+- Training Time: 11594.38 seconds (3.22 hours)
+- Memory Efficiency: 0.0130 points/MB
+- Parameter Efficiency: 4.7579 points/M-params
+- Training Efficiency: 5.2281 points/hour
 
 LORA-SPECIFIC METRICS:
 - LoRA Rank: 0
