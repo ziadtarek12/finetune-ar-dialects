@@ -864,21 +864,8 @@ class DatasetManager:
                 combined_train.append(train_dataset)
                 combined_test.append(test_dataset)
                 # Delete dataset cache from disk
-                try:
-                    cache_files = []
-                    if hasattr(train_dataset, 'cache_files'):
-                        cache_files.extend(train_dataset.cache_files)
-                    if hasattr(test_dataset, 'cache_files'):
-                        cache_files.extend(test_dataset.cache_files)
-                    for cache in cache_files:
-                        cache_dir = cache.get('filename', None)
-                        if cache_dir:
-                            cache_root = os.path.dirname(cache_dir)
-                            if os.path.exists(cache_root):
-                                shutil.rmtree(cache_root)
-                                logger.info(f"Deleted cache directory: {cache_root}")
-                except Exception as e:
-                    logger.warning(f"Could not delete cache for {dialect_name}: {e}")
+                train_dataset.cleanup_cache_files()
+                test_dataset.cleanup_cache_files()
                 del train_dataset, test_dataset  # Free memory
             train_combined = concatenate_datasets(combined_train)
             test_combined = concatenate_datasets(combined_test)
