@@ -841,47 +841,45 @@ class DatasetManager:
             return self._load_placeholder_dataset(processor)
     
     def _load_huggingface_dataset(self) -> DatasetDict:
-        """Load datasets from the official HuggingFace collection."""
+        """Load datasets from the official HuggingFace collection, efficiently sampling for 'all'."""
         if self.dialect == "all":
-            # Load and combine all dialect datasets
-            logger.info("Loading combined dialect data from HuggingFace...")
+            logger.info("Efficiently loading combined dialect data from HuggingFace...")
+            train_samples_per_dialect = 1000  # Change as needed
+            test_samples_per_dialect = 200    # Change as needed
+            # Use the training seed for shuffling
+            seed = getattr(self, 'seed', 42)
             combined_train = []
             combined_test = []
-            
             for dialect_name, dataset_prefix in HUGGINGFACE_DATASET_MAPPING.items():
                 if dialect_name == 'msa':  # Skip MSA for dialect-only training
                     continue
-                    
                 logger.info(f"Loading {dialect_name} data...")
-                train_dataset = load_dataset(f"{dataset_prefix}_train_set")
-                test_dataset = load_dataset(f"{dataset_prefix}_test_set")
-                
-                combined_train.append(train_dataset['train'])
-                combined_test.append(test_dataset['train'])
-            
-            # Concatenate all dialects
+                train_dataset = load_dataset(f"{dataset_prefix}_train_set")['train']
+                test_dataset = load_dataset(f"{dataset_prefix}_test_set")['train']
+                train_dataset = train_dataset.shuffle(seed=seed)
+                test_dataset = test_dataset.shuffle(seed=seed)
+                train_dataset = train_dataset.select(range(min(train_samples_per_dialect, len(train_dataset))))
+                test_dataset = test_dataset.select(range(min(test_samples_per_dialect, len(test_dataset))))
+                combined_train.append(train_dataset)
+                combined_test.append(test_dataset)
+                del train_dataset, test_dataset  # Free memory
             train_combined = concatenate_datasets(combined_train)
             test_combined = concatenate_datasets(combined_test)
-            
             return DatasetDict({
                 "train": train_combined,
                 "test": test_combined
             })
-        
         else:
             # Load specific dialect
             if self.dialect not in HUGGINGFACE_DATASET_MAPPING:
                 raise ValueError(f"Dialect '{self.dialect}' not found in HuggingFace collection")
-            
             dataset_prefix = HUGGINGFACE_DATASET_MAPPING[self.dialect]
             logger.info(f"Loading {self.dialect} data from {dataset_prefix}...")
-            
-            train_dataset = load_dataset(f"{dataset_prefix}_train_set")
-            test_dataset = load_dataset(f"{dataset_prefix}_test_set")
-            
+            train_dataset = load_dataset(f"{dataset_prefix}_train_set")['train']
+            test_dataset = load_dataset(f"{dataset_prefix}_test_set")['train']
             return DatasetDict({
-                "train": train_dataset['train'],
-                "test": test_dataset['train']
+                "train": train_dataset,
+                "test": test_dataset
             })
     
     def _load_local_dataset(self) -> DatasetDict:
