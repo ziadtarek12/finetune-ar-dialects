@@ -7,17 +7,17 @@ Dialect: msa
 Seed: 42
 
 PERFORMANCE METRICS:
-- Word Error Rate (WER): 50.27%
-- Character Error Rate (CER): 21.78%
-- Final Loss: 0.4397
+- Word Error Rate (WER): 47.46%
+- Character Error Rate (CER): 19.85%
+- Final Loss: 0.4020
 
 EFFICIENCY METRICS:
 - Trainable Parameters: 3,538,944 (1.44% of total)
-- Peak Memory Usage: 1289.77 MB
-- Training Time: 16207.15 seconds (4.50 hours)
-- Memory Efficiency: 0.0386 points/MB
-- Parameter Efficiency: 14.0516 points/M-params
-- Training Efficiency: 11.0458 points/hour
+- Peak Memory Usage: 1290.92 MB
+- Training Time: 22645.50 seconds (6.29 hours)
+- Memory Efficiency: 0.0407 points/MB
+- Parameter Efficiency: 14.8468 points/M-params
+- Training Efficiency: 8.3527 points/hour
 
 LORA-SPECIFIC METRICS:
 - LoRA Rank: 0
