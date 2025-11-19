@@ -169,3 +169,5 @@ plot_feature_selection.ipynb
 .other/
 scripts/
 training logs/
+resukts_graphs/
+main_paper.pdf

@@ -1,0 +1,35 @@
+\begin{table}
+\caption{PEFT Model performance comparison with and without MSA pre-training}
+\label{tab:peft_comparison}
+\begin{tabular}{llllllll}
+\toprule
+ &  & test_dialect & Egyptian & Gulf & Iraqi & Levantine & Maghrebi \\
+Pre-Training & Metric & Train set &  &  &  &  &  \\
+\midrule
+\multirow[t]{10}{*}{\textbf{With}} & \multirow[t]{5}{*}{\textbf{WER}} & \textbf{Egyptian} & 76.84 ± 0.77 & 98.15 ± 3.23 & 101.48 ± 0.91 & 90.68 ± 4.85 & 106.13 ± 8.14 \\
+\textbf{} & \textbf{} & \textbf{Gulf} & 85.66 ± 1.06 & 83.55 ± 1.52 & 96.47 ± 3.22 & 83.81 ± 0.47 & 98.42 ± 2.72 \\
+\textbf{} & \textbf{} & \textbf{Iraqi} & 89.33 ± 2.08 & 94.06 ± 0.54 & 79.82 ± 1.46 & 93.23 ± 4.37 & 101.23 ± 3.90 \\
+\textbf{} & \textbf{} & \textbf{Levantine} & 83.11 ± 1.49 & 89.74 ± 1.74 & 94.39 ± 0.47 & 75.80 ± 3.06 & 96.16 ± 3.82 \\
+\textbf{} & \textbf{} & \textbf{Maghrebi} & 88.50 ± 3.83 & 95.79 ± 1.72 & 99.06 ± 2.13 & 86.10 ± 2.49 & 85.13 ± 5.59 \\
+\cline{2-8}
+\textbf{} & \multirow[t]{5}{*}{\textbf{CER}} & \textbf{Egyptian} & 48.15 ± 1.55 & 71.57 ± 3.43 & 64.47 ± 1.02 & 63.12 ± 6.34 & 78.05 ± 10.46 \\
+\textbf{} & \textbf{} & \textbf{Gulf} & 56.74 ± 2.98 & 64.81 ± 0.58 & 64.54 ± 4.34 & 56.74 ± 1.71 & 72.07 ± 5.22 \\
+\textbf{} & \textbf{} & \textbf{Iraqi} & 56.21 ± 1.71 & 63.13 ± 1.56 & 50.38 ± 1.87 & 66.10 ± 4.44 & 72.78 ± 5.77 \\
+\textbf{} & \textbf{} & \textbf{Levantine} & 52.16 ± 2.03 & 65.51 ± 5.26 & 59.14 ± 1.47 & 50.65 ± 2.52 & 70.55 ± 2.12 \\
+\textbf{} & \textbf{} & \textbf{Maghrebi} & 54.07 ± 4.15 & 62.19 ± 0.57 & 61.38 ± 1.08 & 53.78 ± 2.65 & 54.71 ± 4.43 \\
+\cline{1-8} \cline{2-8}
+\multirow[t]{10}{*}{\textbf{Without}} & \multirow[t]{5}{*}{\textbf{WER}} & \textbf{Egyptian} & 73.63 ± 0.47 & 97.76 ± 5.97 & 100.48 ± 0.73 & 87.73 ± 4.31 & 102.16 ± 6.04 \\
+\textbf{} & \textbf{} & \textbf{Gulf} & 86.99 ± 1.35 & 86.93 ± 0.94 & 96.39 ± 2.50 & 83.26 ± 1.69 & 98.47 ± 3.92 \\
+\textbf{} & \textbf{} & \textbf{Iraqi} & 88.12 ± 1.14 & 89.55 ± 2.25 & 78.26 ± 0.36 & 89.44 ± 1.77 & 98.19 ± 2.21 \\
+\textbf{} & \textbf{} & \textbf{Levantine} & 82.07 ± 0.72 & 89.85 ± 0.58 & 94.17 ± 1.54 & 76.07 ± 0.64 & 93.98 ± 3.82 \\
+\textbf{} & \textbf{} & \textbf{Maghrebi} & 86.57 ± 0.83 & 92.44 ± 1.51 & 97.80 ± 1.43 & 84.31 ± 0.09 & 82.53 ± 0.63 \\
+\cline{2-8}
+\textbf{} & \multirow[t]{5}{*}{\textbf{CER}} & \textbf{Egyptian} & 44.71 ± 0.51 & 71.06 ± 4.37 & 63.56 ± 0.22 & 57.72 ± 2.55 & 73.04 ± 7.10 \\
+\textbf{} & \textbf{} & \textbf{Gulf} & 58.15 ± 2.07 & 69.47 ± 1.17 & 63.26 ± 2.35 & 57.35 ± 2.38 & 74.68 ± 7.91 \\
+\textbf{} & \textbf{} & \textbf{Iraqi} & 55.44 ± 1.60 & 60.28 ± 2.10 & 48.57 ± 1.46 & 61.11 ± 4.90 & 70.06 ± 3.49 \\
+\textbf{} & \textbf{} & \textbf{Levantine} & 51.91 ± 0.50 & 64.72 ± 0.53 & 58.28 ± 1.86 & 51.25 ± 0.51 & 67.20 ± 2.39 \\
+\textbf{} & \textbf{} & \textbf{Maghrebi} & 52.55 ± 0.27 & 58.94 ± 0.84 & 59.58 ± 2.05 & 52.63 ± 1.05 & 52.55 ± 0.51 \\
+\cline{1-8} \cline{2-8}
+\bottomrule
+\end{tabular}
+\end{table}

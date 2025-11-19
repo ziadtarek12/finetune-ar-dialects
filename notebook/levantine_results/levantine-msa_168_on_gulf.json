@@ -1,0 +1,7 @@
+{
+  "eval/wer": 91.7006969817925,
+  "eval/cer": 70.09171580013103,
+  "eval/normalized_wer": 89.39403298536043,
+  "eval/normalized_cer": 68.65264652048859,
+  "eval/samples": 5408
+}

@@ -1,0 +1,16 @@
+\begin{table}
+\caption{Wilcoxon results comparing PEFT models with and without MSA pre-training}
+\label{tab:peft_ttest}
+\begin{tabular}{lllrrr}
+\toprule
+ & Base-only training & With MSA pre-training & Z-statistic & p-value & holm-bonferroni \\
+dialect &  &  &  &  &  \\
+\midrule
+\textbf{Egyptian} & 73.63 ± 0.39 & 76.84 ± 0.63 & 0.000 & 0.250 & 1.000 \\
+\textbf{Gulf} & 86.93 ± 0.77 & 83.55 ± 1.24 & 0.000 & 0.250 & 1.000 \\
+\textbf{Levantine} & 76.07 ± 0.52 & 75.80 ± 2.50 & 3.000 & 1.000 & 1.000 \\
+\textbf{Maghrebi} & 82.53 ± 0.51 & 85.14 ± 4.56 & 2.000 & 0.750 & 1.000 \\
+\textbf{Iraqi} & 78.26 ± 0.29 & 79.82 ± 1.20 & 0.000 & 0.250 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
