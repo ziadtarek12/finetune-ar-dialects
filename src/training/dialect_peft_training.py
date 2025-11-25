@@ -120,6 +120,9 @@ HUGGINGFACE_DATASET_MAPPING = {
     'msa': 'otozz/MSA'
 }
 
+# Default test split size for custom datasets without train/test splits
+DEFAULT_TEST_SPLIT_SIZE = 0.2
+
 
 # =============================================================================
 # UTILITY CLASSES
@@ -848,38 +851,49 @@ class DatasetManager:
             logger.info(f"Loading custom dataset from HuggingFace: {self.custom_dataset}")
             try:
                 dataset = load_dataset(self.custom_dataset)
-                # Check if it has train/test splits
-                if "train" in dataset and "test" in dataset:
+            except FileNotFoundError:
+                raise ValueError(
+                    f"Dataset '{self.custom_dataset}' not found on HuggingFace Hub. "
+                    "Please check the dataset name and ensure it exists."
+                )
+            except ConnectionError as e:
+                raise ValueError(
+                    f"Failed to connect to HuggingFace Hub while loading '{self.custom_dataset}'. "
+                    f"Please check your internet connection. Error: {e}"
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to load custom dataset '{self.custom_dataset}': {e}")
+            
+            # Check if it has train/test splits
+            if "train" in dataset and "test" in dataset:
+                return DatasetDict({
+                    "train": dataset["train"],
+                    "test": dataset["test"]
+                })
+            elif "train" in dataset:
+                # If only train split, create a test split from it
+                logger.info(f"Custom dataset has only 'train' split, creating {int((1-DEFAULT_TEST_SPLIT_SIZE)*100)}/{int(DEFAULT_TEST_SPLIT_SIZE*100)} train/test split")
+                split_dataset = dataset["train"].train_test_split(test_size=DEFAULT_TEST_SPLIT_SIZE)
+                return DatasetDict({
+                    "train": split_dataset["train"],
+                    "test": split_dataset["test"]
+                })
+            else:
+                # Use the first available split
+                available_splits = list(dataset.keys())
+                logger.info(f"Available splits in custom dataset: {available_splits}")
+                if len(available_splits) >= 2:
                     return DatasetDict({
-                        "train": dataset["train"],
-                        "test": dataset["test"]
+                        "train": dataset[available_splits[0]],
+                        "test": dataset[available_splits[1]]
                     })
-                elif "train" in dataset:
-                    # If only train split, create a test split from it
-                    logger.info("Custom dataset has only 'train' split, creating 80/20 train/test split")
-                    split_dataset = dataset["train"].train_test_split(test_size=0.2)
+                else:
+                    # Create train/test split from the single split
+                    split_dataset = dataset[available_splits[0]].train_test_split(test_size=DEFAULT_TEST_SPLIT_SIZE)
                     return DatasetDict({
                         "train": split_dataset["train"],
                         "test": split_dataset["test"]
                     })
-                else:
-                    # Use the first available split
-                    available_splits = list(dataset.keys())
-                    logger.info(f"Available splits in custom dataset: {available_splits}")
-                    if len(available_splits) >= 2:
-                        return DatasetDict({
-                            "train": dataset[available_splits[0]],
-                            "test": dataset[available_splits[1]]
-                        })
-                    else:
-                        # Create train/test split from the single split
-                        split_dataset = dataset[available_splits[0]].train_test_split(test_size=0.2)
-                        return DatasetDict({
-                            "train": split_dataset["train"],
-                            "test": split_dataset["test"]
-                        })
-            except Exception as e:
-                raise ValueError(f"Failed to load custom dataset '{self.custom_dataset}': {e}")
         
         if self.dialect == "all":
             # Load and combine all dialect datasets
