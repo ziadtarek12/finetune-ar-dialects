@@ -797,10 +797,11 @@ class AttentionAnalysisCallback(TrainerCallback):
 class DatasetManager:
     """Handles all dataset loading and preprocessing operations."""
     
-    def __init__(self, dialect: str, use_huggingface: bool = True, quick_test: bool = False):
+    def __init__(self, dialect: str, use_huggingface: bool = True, quick_test: bool = False, custom_dataset: str = None):
         self.dialect = dialect
         self.use_huggingface = use_huggingface
         self.quick_test = quick_test
+        self.custom_dataset = custom_dataset
     
     def load_datasets(self, processor: WhisperProcessor) -> DatasetDict:
         """Load and prepare dialect datasets with HuggingFace support."""
@@ -841,7 +842,45 @@ class DatasetManager:
             return self._load_placeholder_dataset(processor)
     
     def _load_huggingface_dataset(self) -> DatasetDict:
-        """Load datasets from the official HuggingFace collection."""
+        """Load datasets from the official HuggingFace collection or a custom dataset."""
+        # If a custom dataset is provided, load it directly
+        if self.custom_dataset:
+            logger.info(f"Loading custom dataset from HuggingFace: {self.custom_dataset}")
+            try:
+                dataset = load_dataset(self.custom_dataset)
+                # Check if it has train/test splits
+                if "train" in dataset and "test" in dataset:
+                    return DatasetDict({
+                        "train": dataset["train"],
+                        "test": dataset["test"]
+                    })
+                elif "train" in dataset:
+                    # If only train split, create a test split from it
+                    logger.info("Custom dataset has only 'train' split, creating 80/20 train/test split")
+                    split_dataset = dataset["train"].train_test_split(test_size=0.2)
+                    return DatasetDict({
+                        "train": split_dataset["train"],
+                        "test": split_dataset["test"]
+                    })
+                else:
+                    # Use the first available split
+                    available_splits = list(dataset.keys())
+                    logger.info(f"Available splits in custom dataset: {available_splits}")
+                    if len(available_splits) >= 2:
+                        return DatasetDict({
+                            "train": dataset[available_splits[0]],
+                            "test": dataset[available_splits[1]]
+                        })
+                    else:
+                        # Create train/test split from the single split
+                        split_dataset = dataset[available_splits[0]].train_test_split(test_size=0.2)
+                        return DatasetDict({
+                            "train": split_dataset["train"],
+                            "test": split_dataset["test"]
+                        })
+            except Exception as e:
+                raise ValueError(f"Failed to load custom dataset '{self.custom_dataset}': {e}")
+        
         if self.dialect == "all":
             # Load and combine all dialect datasets
             logger.info("Loading combined dialect data from HuggingFace...")
@@ -1279,7 +1318,8 @@ class ArabicDialectPEFTTrainer:
         push_to_hub=True,
         hub_model_id=None,
         hub_token=None,
-        eval_output_filename: str = None
+        eval_output_filename: str = None,
+        custom_dataset: str = None
     ):
         # Core configuration
         self.model_name = model_name
@@ -1294,12 +1334,13 @@ class ArabicDialectPEFTTrainer:
         self.hub_token = hub_token or os.getenv("HUGGINGFACE_HUB_TOKEN", None)
         self.hub_model_id = hub_model_id
         self.eval_output_filename = eval_output_filename or f"evaluation_results_{self.dialect}.json"
+        self.custom_dataset = custom_dataset
         # Extract model size and get PEFT config
         self.model_size = self._extract_model_size(model_name)
         self.peft_config = PEFT_CONFIG[self.model_size]
         
         # Initialize managers
-        self.dataset_manager = DatasetManager(dialect, use_huggingface, quick_test)
+        self.dataset_manager = DatasetManager(dialect, use_huggingface, quick_test, custom_dataset)
         self.model_manager = ModelManager(model_name, self.model_size, use_peft, load_in_8bit)
         self.evaluation_manager = None  # Will be initialized after model loading
         
@@ -1311,6 +1352,8 @@ class ArabicDialectPEFTTrainer:
         logger.info(f"  Model: {model_name}")
         logger.info(f"  PEFT: {use_peft}")
         logger.info(f"  Quick test: {quick_test}")
+        if custom_dataset:
+            logger.info(f"  Custom dataset: {custom_dataset}")
     
     def _extract_model_size(self, model_name: str) -> str:
         """Extract model size from model name."""
@@ -1552,6 +1595,9 @@ Examples:
   
   # Use local data instead of HuggingFace
   python src/training/dialect_peft_training.py --dialect egyptian --use_local_data
+  
+  # Use a custom HuggingFace dataset
+  python src/training/dialect_peft_training.py --custom_dataset username/my-arabic-dataset
         """
     )
     
@@ -1564,6 +1610,9 @@ Examples:
     parser.add_argument("--dialect", default="egyptian",
                        choices=["egyptian", "gulf", "iraqi", "levantine", "maghrebi", "msa", "all"],
                        help="Arabic dialect to train on: egyptian, gulf, iraqi, levantine, maghrebi, msa, all (default: egyptian)")
+    parser.add_argument("--custom_dataset", type=str,
+                       help="Custom HuggingFace dataset path (e.g., 'username/dataset-name'). "
+                            "When specified, this dataset is used instead of the default dialect datasets.")
     parser.add_argument("--data_source", default="huggingface",
                        choices=["huggingface", "local", "auto"],
                        help="Data source (default: huggingface)")
@@ -1613,10 +1662,12 @@ Examples:
     print(f"🤖 Model: {args.model_name} ({args.model_size})")
     print(f"📁 Output: {args.output_dir}")
     print(f"📂 Data source: {args.data_source}")
+    if args.custom_dataset:
+        print(f"📦 Custom dataset: {args.custom_dataset}")
     print(f"⚡ Quick test: {args.quick_test}")
     print(f"🔧 PEFT enabled: {args.use_peft and not args.no_peft}")
-    print(f"� 8-bit loading: {args.load_in_8bit}")
-    print(f"�📈 Max steps: {args.max_steps}")
+    print(f"💾 8-bit loading: {args.load_in_8bit}")
+    print(f"📈 Max steps: {args.max_steps}")
     print(f"🕒 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 50)
     
@@ -1640,7 +1691,8 @@ Examples:
         push_to_hub=args.push_to_hub,
         hub_token=args.hub_token,
         hub_model_id=args.hub_model_id,
-        eval_output_filename=args.eval_output_filename
+        eval_output_filename=args.eval_output_filename,
+        custom_dataset=args.custom_dataset
     )
     
     # Evaluation-only mode
